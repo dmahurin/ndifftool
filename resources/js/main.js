@@ -24,9 +24,6 @@ async function init() {
     Neutralino.init();
     Neutralino.events.on("windowClose", () => Neutralino.app.exit());
 
-    // Debug: Log info
-    console.log('NL_ARGS:', NL_ARGS);
-
     // Strict CLI argument parsing
     let args = [];
     const dashDashIndex = NL_ARGS.indexOf('--');
@@ -45,17 +42,8 @@ async function init() {
             try {
                 let content = await Neutralino.filesystem.readFile(path);
                 files.push({ path, content });
-                console.log(`Loaded: ${path}`);
             } catch (err) {
                 console.error(`Error reading file ${path}:`, err);
-                // Try with ./ prefix if relative
-                if (!path.startsWith('/') && !path.startsWith('./')) {
-                    try {
-                        let content = await Neutralino.filesystem.readFile('./' + path);
-                        files.push({ path, content });
-                        console.log(`Loaded with ./ prefix: ${path}`);
-                    } catch (e) {}
-                }
             }
         }
     }
@@ -111,7 +99,9 @@ function initMergeView(cols) {
         highlightDifferences: true,
         connect: 'align',
         collapseIdentical: false,
-        theme: 'monokai'
+        theme: 'monokai',
+        allowEditingOriginals: true,
+        revertButtons: true
     };
 
     if (cols === 2) {
@@ -124,6 +114,76 @@ function initMergeView(cols) {
     }
 
     editorInstance = CodeMirror.MergeView(container, options);
+    
+    // Sync file content on all changes
+    [editorInstance.edit, editorInstance.left?.orig, editorInstance.right?.orig].forEach((cm, i) => {
+        if (!cm) return;
+        cm.on('change', () => {
+            // Mapping depends on layout. This is a simplified approach.
+            // In 2-way: edit is files[0], right.orig is files[1].
+            // In 3-way: left.orig is files[0], edit is files[1], right.orig is files[2].
+            if (cols === 2) {
+                if (cm === editorInstance.edit) files[0].content = cm.getValue();
+                else files[1].content = cm.getValue();
+            } else {
+                if (cm === editorInstance.left.orig) files[0].content = cm.getValue();
+                else if (cm === editorInstance.edit) files[1].content = cm.getValue();
+                else files[2].content = cm.getValue();
+            }
+        });
+    });
+
+    // Custom UI for merge buttons
+    const updateButtons = () => {
+        // Left gutter (between Left and Center)
+        if (editorInstance.left) {
+            customizeGutter(editorInstance.left, 'left');
+        }
+        // Right gutter (between Center and Right)
+        if (editorInstance.right) {
+            customizeGutter(editorInstance.right, 'right');
+        }
+    };
+
+    editorInstance.edit.on('update', updateButtons);
+    setTimeout(updateButtons, 50); // Initial
+}
+
+function customizeGutter(diffView, side) {
+    const gutter = diffView.gutter;
+    if (!gutter) return;
+
+    const buttons = gutter.querySelectorAll('.CodeMirror-merge-copy:not(.customized)');
+    buttons.forEach(btn => {
+        btn.classList.add('customized');
+        btn.removeAttribute('title');
+        
+        // Pull Icon (from orig to edit)
+        btn.innerHTML = (side === 'left') ? '→' : '←';
+        
+        // Add Push Button (from edit to orig)
+        const pushBtn = document.createElement('div');
+        pushBtn.className = 'CodeMirror-merge-copy CodeMirror-merge-copy-push';
+        pushBtn.innerHTML = (side === 'left') ? '←' : '→';
+        btn.parentNode.appendChild(pushBtn);
+
+        pushBtn.onclick = (e) => {
+            e.stopPropagation();
+            // We need to find the chunk this button belongs to
+            const top = parseInt(btn.style.top);
+            const chunk = diffView.chunks.find(c => {
+                const line = diffView.edit.lineAtHeight(top, 'local');
+                return c.editFrom <= line && c.editTo >= line;
+            });
+
+            if (chunk) {
+                const edit = diffView.edit;
+                const orig = diffView.orig;
+                const text = edit.getRange({line: chunk.editFrom, ch: 0}, {line: chunk.editTo, ch: 0});
+                orig.replaceRange(text, {line: chunk.origFrom, ch: 0}, {line: chunk.origTo, ch: 0});
+            }
+        };
+    });
 }
 
 function initFourColumnView() {
@@ -151,6 +211,11 @@ function initFourColumnView() {
             theme: 'monokai',
             readOnly: i < 3 ? 'nocursor' : false
         });
+        
+        cm.on('change', () => {
+            if (files[i]) files[i].content = cm.getValue();
+        });
+
         editors.push(cm);
     }
 

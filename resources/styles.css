@@ -57,6 +57,34 @@ body {
   height: 100%;
 }
 
+/* Merge UI improvements */
+.CodeMirror-merge-copy {
+  color: #555 !important;
+  font-family: monospace;
+  font-weight: bold;
+  background: #fdfdfd;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.CodeMirror-merge-copy:hover {
+  background: #e0e0e0;
+  color: #000 !important;
+}
+
+.CodeMirror-merge-copy-push {
+  /* Offset from the default pull button */
+  transform: translateY(18px); 
+}
+
 /* Diff highlighting for 4-column mode */
 .cm-merge-r-inserted {
   background-color: rgba(0, 255, 0, 0.2);
