@@ -165,13 +165,14 @@ window.addEventListener('mouseup', () => {
     if (!isEditMode && activeCM) {
         const from = activeCM.getCursor('from');
         const to = activeCM.getCursor('to');
-        if (from.line !== to.line || from.ch !== to.ch || from.ch !== 0) {
-            activeCM.setSelection(
-                {line: to.line, ch: activeCM.getLine(to.line).length},
-                {line: from.line, ch: 0},
-                {scroll: false}
-            );
-        }
+        // Always force head to start of top line (reversed selection)
+        activeCM.setSelection(
+            {line: to.line, ch: activeCM.getLine(to.line).length},
+            {line: from.line, ch: 0},
+            {scroll: false}
+        );
+        // Ensure the top line is visible
+        activeCM.scrollIntoView({line: from.line, ch: 0});
     }
 });
 
@@ -362,7 +363,11 @@ function moveSelectedLines(direction) {
     targetCM.replaceRange(text, {line: targetStart, ch: 0}, {line: targetEnd, ch: targetCM.getLine(targetEnd).length});
     
     const newEndLine = targetStart + (sourceEnd - sourceStart);
-    targetCM.setSelection({line: targetStart, ch: 0}, {line: newEndLine, ch: targetCM.getLine(newEndLine).length});
+    // Reverse selection: anchor at bottom, head at top (ch 0)
+    targetCM.setSelection(
+        {line: newEndLine, ch: targetCM.getLine(newEndLine).length},
+        {line: targetStart, ch: 0}
+    );
     clearOtherSelections(targetCM);
     targetCM.focus();
 }
