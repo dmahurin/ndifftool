@@ -76,12 +76,12 @@ function handleKey(cm, e) {
         setMode(false);
     }
 }
-
 function clearOtherSelections(currentCM) {
     allEditors.forEach(cm => {
         if (cm !== currentCM) {
+            // Clear selection by setting head to anchor with a custom origin
             const cur = cm.getCursor();
-            cm.setSelection(cur, cur, {scroll: false});
+            cm.setSelection(cur, cur, {origin: 'clearSelection', scroll: false});
             cm.getWrapperElement().classList.remove('editor-active');
         }
     });
@@ -91,18 +91,18 @@ function clearOtherSelections(currentCM) {
 
 function setupEditor(cm, index) {
     allEditors.push(cm);
-    
+
     cm.on('focus', () => clearOtherSelections(cm));
     cm.on('mousedown', () => clearOtherSelections(cm));
     cm.on('keydown', handleKey);
 
     cm.on('beforeSelectionChange', (cm, obj) => {
-        if (obj.origin && obj.origin !== 'setValue') {
+        if (obj.origin && obj.origin !== 'setValue' && obj.origin !== 'clearSelection') {
             const hasSelection = obj.ranges.some(r => r.anchor.line !== r.head.line || r.anchor.ch !== r.head.ch);
             if (hasSelection) clearOtherSelections(cm);
         }
 
-        if (!isEditMode && obj.ranges && obj.origin !== 'setValue') {
+        if (!isEditMode && obj.ranges && obj.origin !== 'setValue' && obj.origin !== 'clearSelection') {
             obj.ranges.forEach(range => {
                 const startLine = Math.min(range.anchor.line, range.head.line);
                 const endLine = Math.max(range.anchor.line, range.head.line);
