@@ -15,41 +15,45 @@ body {
 }
 
 #toolbar {
-  padding: 10px;
+  padding: 5px 10px;
+  height: 40px;
   background-color: #f0f0f0;
   border-bottom: 1px solid #ccc;
   display: flex;
   gap: 10px;
   align-items: center;
+  box-sizing: border-box;
 }
 
 #editor-container {
   flex: 1;
   position: relative;
+  overflow: hidden;
 }
 
 /* CodeMirror MergeView styles to fill container */
 .CodeMirror-merge, .CodeMirror-merge .CodeMirror {
-  height: 100% !important;
+  height: calc(100vh - 40px) !important;
 }
 
-/* Custom 4-column grid styles */
-.four-column-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  height: 100%;
-  gap: 1px;
+/* Custom 4-column layout styles */
+.four-column-layout {
+  display: flex;
+  height: calc(100vh - 40px);
   background-color: #ccc;
+  gap: 1px;
 }
 
-.four-column-grid > div {
+.four-column-layout > div {
+  flex: 1;
   background-color: white;
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  border-right: 1px solid #ddd;
 }
 
-.four-column-grid .CodeMirror {
+.four-column-layout .CodeMirror {
   height: 100%;
 }
 

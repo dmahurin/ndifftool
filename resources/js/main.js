@@ -1,41 +1,69 @@
 let files = [];
 let editorInstance = null;
 let currentLayout = 2;
+window.addEventListener('DOMContentLoaded', () => {
+    init().catch(err => {
+        console.error('Initialization failed:', err);
+        const info = document.getElementById('file-info');
+        if (info) info.innerHTML = `<span style="color: red;">Init Error: ${err.message}</span>`;
+    });
+});
 
 async function init() {
+    console.log('Window location:', window.location.href);
+    if (typeof Neutralino === 'undefined') {
+        throw new Error('Neutralino client library not loaded');
+    }
+    if (typeof CodeMirror === 'undefined') {
+        throw new Error('CodeMirror library not loaded');
+    }
+
     Neutralino.init();
     Neutralino.events.on("windowClose", () => Neutralino.app.exit());
 
-    // Parse CLI arguments
-    // NL_ARGS contains [binary, --res-mode, ..., --, file1, file2, ...]
-    // But Neutralino sometimes passes arguments differently.
-    // Let's filter out internal arguments.
-    let args = NL_ARGS.slice(1).filter(arg => !arg.startsWith('--'));
-    
-    // If '--' is present, args after it are user args
+    // Debug: Log NL_ARGS to console
+    console.log('NL_ARGS:', NL_ARGS);
+
+    let args = [];
     const dashDashIndex = NL_ARGS.indexOf('--');
     if (dashDashIndex !== -1) {
         args = NL_ARGS.slice(dashDashIndex + 1);
+    } else {
+        args = NL_ARGS.slice(1).filter(arg => !arg.startsWith('--'));
     }
+    
+    console.log('Parsed args:', args);
 
     if (args.length > 0) {
         for (let path of args) {
             try {
                 let content = await Neutralino.filesystem.readFile(path);
                 files.push({ path, content });
+                console.log(`Loaded: ${path} (${content.length} chars)`);
             } catch (err) {
                 console.error(`Error reading file ${path}:`, err);
+                // Attempt absolute path if relative fails
+                try {
+                   // Some Neutralino environments need paths relative to binary or absolute
+                   // Try to get current directory or just log it
+                   console.log(`Trying again for ${path}...`);
+                } catch (e) {}
             }
         }
     }
 
-    // Default layout based on number of files
+    // Determine layout
     if (files.length >= 4) currentLayout = 4;
     else if (files.length === 3) currentLayout = 3;
-    else currentLayout = 2;
+    else currentLayout = 2; // Covers 0, 1, 2 files
 
     setLayout(currentLayout);
     updateFileInfo();
+    
+    if (files.length === 0 && args.length > 0) {
+        const info = document.getElementById('file-info');
+        info.innerHTML = `<span style="color: red;">Failed to load any files from args: ${args.join(', ')}</span>`;
+    }
 }
 
 function setLayout(cols) {
@@ -83,7 +111,6 @@ function initMergeView(cols) {
         options.orig = files[1]?.content || '';
     } else {
         // 3-way merge: Left, Middle (Result), Right
-        // Often: Local, Base, Remote
         options.origLeft = files[0]?.content || '';
         options.value = files[1]?.content || '';
         options.orig = files[2]?.content || '';
@@ -94,9 +121,9 @@ function initMergeView(cols) {
 
 function initFourColumnView() {
     const container = document.getElementById('editor-container');
-    const grid = document.createElement('div');
-    grid.className = 'four-column-grid';
-    container.appendChild(grid);
+    const layout = document.createElement('div');
+    layout.className = 'four-column-layout';
+    container.appendChild(layout);
 
     const editors = [];
     const labels = ['BASE', 'LOCAL', 'REMOTE', 'MERGE RESULT'];
@@ -108,7 +135,7 @@ function initFourColumnView() {
         label.className = 'pane-label';
         label.innerText = labels[i];
         pane.appendChild(label);
-        grid.appendChild(pane);
+        layout.appendChild(pane);
 
         const cm = CodeMirror(pane, {
             value: files[i]?.content || '',
@@ -133,14 +160,18 @@ function initFourColumnView() {
     });
 
     editorInstance = {
-        getEditor: () => editors[3], // The editable one
+        getEditor: () => editors[3],
         type: 'four'
     };
 }
 
 function updateFileInfo() {
     const info = document.getElementById('file-info');
-    info.innerText = files.map(f => f.path.split('/').pop()).join(' vs ');
+    if (files.length === 0) {
+        info.innerText = 'No files loaded. Use: neu run -- file1 file2 ...';
+    } else {
+        info.innerText = `Loaded ${files.length} file(s): ` + files.map(f => f.path.split('/').pop()).join(' vs ');
+    }
 }
 
 async function saveResult() {
