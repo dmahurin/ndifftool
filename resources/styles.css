@@ -57,6 +57,16 @@ body {
   height: 100%;
 }
 
+/* Diff highlighting for 4-column mode */
+.cm-merge-r-inserted {
+  background-color: rgba(0, 255, 0, 0.2);
+}
+
+.cm-merge-r-deleted {
+  background-color: rgba(255, 0, 0, 0.2);
+  border-bottom: 1px solid red;
+}
+
 .pane-label {
   position: absolute;
   top: 0;

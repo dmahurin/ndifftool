@@ -1,6 +1,7 @@
 let files = [];
 let editorInstance = null;
 let currentLayout = 2;
+
 window.addEventListener('DOMContentLoaded', () => {
     init().catch(err => {
         console.error('Initialization failed:', err);
@@ -10,52 +11,59 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function init() {
-    console.log('Window location:', window.location.href);
     if (typeof Neutralino === 'undefined') {
         throw new Error('Neutralino client library not loaded');
     }
     if (typeof CodeMirror === 'undefined') {
         throw new Error('CodeMirror library not loaded');
     }
+    if (typeof diff_match_patch === 'undefined') {
+        throw new Error('diff_match_patch library not loaded');
+    }
 
     Neutralino.init();
     Neutralino.events.on("windowClose", () => Neutralino.app.exit());
 
-    // Debug: Log NL_ARGS to console
+    // Debug: Log info
     console.log('NL_ARGS:', NL_ARGS);
 
+    // Strict CLI argument parsing
     let args = [];
     const dashDashIndex = NL_ARGS.indexOf('--');
     if (dashDashIndex !== -1) {
         args = NL_ARGS.slice(dashDashIndex + 1);
     } else {
-        args = NL_ARGS.slice(1).filter(arg => !arg.startsWith('--'));
+        // Filter out binary, internal flags, and macOS PSN arguments
+        args = NL_ARGS.slice(1).filter(arg => !arg.startsWith('-'));
     }
     
-    console.log('Parsed args:', args);
+    // Clear state
+    files = [];
 
     if (args.length > 0) {
         for (let path of args) {
             try {
                 let content = await Neutralino.filesystem.readFile(path);
                 files.push({ path, content });
-                console.log(`Loaded: ${path} (${content.length} chars)`);
+                console.log(`Loaded: ${path}`);
             } catch (err) {
                 console.error(`Error reading file ${path}:`, err);
-                // Attempt absolute path if relative fails
-                try {
-                   // Some Neutralino environments need paths relative to binary or absolute
-                   // Try to get current directory or just log it
-                   console.log(`Trying again for ${path}...`);
-                } catch (e) {}
+                // Try with ./ prefix if relative
+                if (!path.startsWith('/') && !path.startsWith('./')) {
+                    try {
+                        let content = await Neutralino.filesystem.readFile('./' + path);
+                        files.push({ path, content });
+                        console.log(`Loaded with ./ prefix: ${path}`);
+                    } catch (e) {}
+                }
             }
         }
     }
 
-    // Determine layout
+    // Determine layout automatically
     if (files.length >= 4) currentLayout = 4;
     else if (files.length === 3) currentLayout = 3;
-    else currentLayout = 2; // Covers 0, 1, 2 files
+    else currentLayout = 2;
 
     setLayout(currentLayout);
     updateFileInfo();
@@ -69,7 +77,7 @@ async function init() {
 function setLayout(cols) {
     currentLayout = cols;
     const container = document.getElementById('editor-container');
-    container.innerHTML = ''; // Clear previous
+    container.innerHTML = ''; 
 
     if (cols === 2 || cols === 3) {
         initMergeView(cols);
@@ -110,7 +118,6 @@ function initMergeView(cols) {
         options.value = files[0]?.content || '';
         options.orig = files[1]?.content || '';
     } else {
-        // 3-way merge: Left, Middle (Result), Right
         options.origLeft = files[0]?.content || '';
         options.value = files[1]?.content || '';
         options.orig = files[2]?.content || '';
@@ -127,8 +134,8 @@ function initFourColumnView() {
 
     const editors = [];
     const labels = ['BASE', 'LOCAL', 'REMOTE', 'MERGE RESULT'];
-
     const mode = getMode(files[0]?.path);
+
     for (let i = 0; i < 4; i++) {
         const pane = document.createElement('div');
         const label = document.createElement('div');
@@ -145,6 +152,38 @@ function initFourColumnView() {
             readOnly: i < 3 ? 'nocursor' : false
         });
         editors.push(cm);
+    }
+
+    // Highlighting differences in 4-column mode
+    const dmp = new diff_match_patch();
+    
+    function highlightDiff(editor, baseText, currentText) {
+        if (!baseText || !currentText) return;
+        const diffs = dmp.diff_main(baseText, currentText);
+        dmp.diff_cleanupSemantic(diffs);
+        
+        let pos = 0;
+        diffs.forEach(([op, text]) => {
+            if (op === 0) { // EQUAL
+                pos += text.length;
+            } else if (op === 1) { // INSERT
+                const start = editor.posFromIndex(pos);
+                pos += text.length;
+                const end = editor.posFromIndex(pos);
+                editor.markText(start, end, { className: 'cm-merge-r-inserted' });
+            } else if (op === -1) { // DELETE
+                const start = editor.posFromIndex(pos);
+                const end = editor.posFromIndex(pos + 1);
+                editor.markText(start, end, { className: 'cm-merge-r-deleted' });
+            }
+        });
+    }
+
+    if (files.length >= 3) {
+        const baseText = files[0].content;
+        highlightDiff(editors[1], baseText, files[1].content); // Local
+        highlightDiff(editors[2], baseText, files[2].content); // Remote
+        if (files[3]) highlightDiff(editors[3], baseText, files[3].content); // Merge Result
     }
 
     // Sync scrolling
@@ -182,8 +221,6 @@ async function saveResult() {
         result = editorInstance.getEditor().getValue();
     }
 
-    // Determine where to save. If 3-way or 4-way, usually the 2nd or 4th file.
-    // For now, let's ask where to save or use a default.
     try {
         let savePath = await Neutralino.os.showSaveDialog('Save Merge Result');
         if (savePath) {
@@ -194,5 +231,3 @@ async function saveResult() {
         console.error('Save failed:', err);
     }
 }
-
-init();
