@@ -102,28 +102,51 @@ function setupEditor(cm, index) {
             if (hasSelection) clearOtherSelections(cm);
         }
 
-        if (!isEditMode && obj.ranges) {
+        if (!isEditMode && obj.ranges && obj.origin !== 'setValue') {
             obj.ranges.forEach(range => {
-                if (range.anchor.line !== range.head.line || range.anchor.ch !== range.head.ch) {
-                    const startLine = Math.min(range.anchor.line, range.head.line);
-                    const endLine = Math.max(range.anchor.line, range.head.line);
-                    range.anchor.line = startLine;
-                    range.anchor.ch = 0;
-                    range.head.line = endLine;
-                    range.head.ch = cm.getLine(endLine).length;
+                const startLine = Math.min(range.anchor.line, range.head.line);
+                const endLine = Math.max(range.anchor.line, range.head.line);
+                
+                if (range.head.line <= range.anchor.line) {
+                    // Clicking or dragging UP: keep head at the top
+                    range.anchor = {line: endLine, ch: cm.getLine(endLine).length};
+                    range.head = {line: startLine, ch: 0};
                 } else {
-                    range.anchor.ch = range.head.ch = 0;
+                    // Dragging DOWN: keep head at the bottom to allow drag to continue
+                    range.anchor = {line: startLine, ch: 0};
+                    range.head = {line: endLine, ch: cm.getLine(endLine).length};
                 }
             });
         }
     });
 
+    cm.on('cursorActivity', () => {
+        if (!isEditMode && activeCM === cm) {
+            // Keep the top of the selection in view
+            cm.scrollIntoView(cm.getCursor('from'));
+        }
+    });
+
     cm.on('change', () => {
         if (files[index]) files[index].content = cm.getValue();
-        // Recalculate chunks for 4-column mode if we are in it
         if (currentLayout === 4) refreshFourColumnChunks();
     });
 }
+
+// Global mouseup to reverse selections after dragging
+window.addEventListener('mouseup', () => {
+    if (!isEditMode && activeCM) {
+        const from = activeCM.getCursor('from');
+        const to = activeCM.getCursor('to');
+        if (from.line !== to.line || from.ch !== to.ch || from.ch !== 0) {
+            activeCM.setSelection(
+                {line: to.line, ch: activeCM.getLine(to.line).length},
+                {line: from.line, ch: 0},
+                {scroll: false}
+            );
+        }
+    }
+});
 
 function setLayout(cols) {
     currentLayout = cols;
