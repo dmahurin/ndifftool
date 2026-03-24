@@ -55,14 +55,41 @@ function setMode(edit) {
     isEditMode = edit;
     document.body.classList.toggle('line-select-mode', !edit);
     
+    // Ensure we have an active editor to focus
+    if (allEditors.length > 0 && !activeCM) {
+        activeCM = allEditors[0];
+        activeCM.getWrapperElement().classList.add('editor-active');
+    }
+
     allEditors.forEach(cm => {
         cm.setOption('readOnly', !edit);
         cm.setOption('cursorBlinkRate', edit ? 530 : -1);
+        
         if (!edit) {
-            const cur = cm.getCursor();
-            cm.setCursor({line: cur.line, ch: 0});
+            // Exiting Edit Mode: Expand existing selection to full lines
+            const from = cm.getCursor('from');
+            const to = cm.getCursor('to');
+            if (from.line !== to.line || from.ch !== to.ch) {
+                cm.setSelection(
+                    {line: Math.max(from.line, to.line), ch: cm.getLine(Math.max(from.line, to.line)).length},
+                    {line: Math.min(from.line, to.line), ch: 0},
+                    {scroll: false}
+                );
+            } else {
+                cm.setCursor({line: from.line, ch: 0});
+            }
+        } else if (cm === activeCM) {
+            // Entering Edit Mode: Clear selection and put cursor at start of last selected line
+            const to = cm.getCursor('to');
+            cm.setSelection({line: to.line, ch: 0}, {line: to.line, ch: 0}, {scroll: true});
         }
+        // Force re-render to show/hide cursor immediately
+        cm.refresh();
     });
+
+    if (edit && activeCM) {
+        activeCM.focus();
+    }
     
     updateFileInfo();
 }
@@ -281,6 +308,12 @@ function mapLine(chunks, line, fromOrig) {
 
 function moveSelectedLines(direction) {
     if (!activeCM) return;
+
+    // Issue 3: If in Edit Mode, switch back to Select Mode first
+    if (isEditMode) {
+        setMode(false);
+    }
+    
     const currentIndex = allEditors.indexOf(activeCM);
     let targetIndex = (direction === 'left') ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= allEditors.length) return;
