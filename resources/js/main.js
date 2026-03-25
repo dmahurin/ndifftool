@@ -294,17 +294,19 @@ function initFourColumnView() {
 
 function mapLine(chunks, line, fromOrig) {
     if (!chunks || chunks.length === 0) return line;
+    let offset = 0;
     for (let c of chunks) {
         if (fromOrig) {
-            if (line < c.origFrom) return line + (c.editFrom - c.origFrom);
+            if (line < c.origFrom) return line + offset;
             if (line < c.origTo) return c.editFrom; 
+            offset = c.editTo - c.origTo;
         } else {
-            if (line < c.editFrom) return line + (c.origFrom - c.editFrom);
+            if (line < c.editFrom) return line + offset;
             if (line < c.editTo) return c.origFrom;
+            offset = c.origTo - c.editTo;
         }
     }
-    const last = chunks[chunks.length - 1];
-    return fromOrig ? line + (last.editTo - last.origTo) : line + (last.origTo - last.editTo);
+    return line + offset;
 }
 
 function moveSelectedLines(direction) {
@@ -328,35 +330,30 @@ function moveSelectedLines(direction) {
 
     if (currentLayout === 4) {
         // Mapping in 4-column: Source -> BASE -> Target
-        // BASE is index 0.
         let baseStart = (currentIndex === 0) ? sourceStart : mapLine(columnChunks[currentIndex], sourceStart, false);
         let baseEnd = (currentIndex === 0) ? sourceEnd : mapLine(columnChunks[currentIndex], sourceEnd, false);
         
         targetStart = (targetIndex === 0) ? baseStart : mapLine(columnChunks[targetIndex], baseStart, true);
         targetEnd = (targetIndex === 0) ? baseEnd : mapLine(columnChunks[targetIndex], baseEnd, true);
-    } else {
-        // MergeView mapping
-        const diffView = (currentIndex === 0 || (currentLayout === 3 && currentIndex === 1)) ? editorInstance.left : editorInstance.right;
-        const fromOrig = (currentIndex === 0 || (currentLayout === 3 && currentIndex === 2));
-        
-        // If moving from side to center or center to side
-        if (currentLayout === 2) {
-            targetStart = mapLine(editorInstance.right.chunks, sourceStart, fromOrig);
-            targetEnd = mapLine(editorInstance.right.chunks, sourceEnd, fromOrig);
-        } else {
-            // 3-way is more complex, simplify to using visual if logical mapping logic becomes too deep
-            // But let's try logical first for the active diff view
-            const dv = (currentIndex === 0) ? editorInstance.left : (currentIndex === 2) ? editorInstance.right : null;
-            if (dv) {
-                targetStart = mapLine(dv.chunks, sourceStart, true);
-                targetEnd = mapLine(dv.chunks, sourceEnd, true);
-            } else {
-                // Moving from center (index 1) to left (0) or right (2)
-                const dvTarget = (targetIndex === 0) ? editorInstance.left : editorInstance.right;
-                targetStart = mapLine(dvTarget.chunks, sourceStart, false);
-                targetEnd = mapLine(dvTarget.chunks, sourceEnd, false);
-            }
+    } else if (currentLayout === 2) {
+        // 2-way: index 0 is edit, index 1 is right.orig
+        const dv = editorInstance.right;
+        const fromOrig = (currentIndex === 1);
+        targetStart = mapLine(dv.chunks, sourceStart, fromOrig);
+        targetEnd = mapLine(dv.chunks, sourceEnd, fromOrig);
+    } else if (currentLayout === 3) {
+        // 3-way: index 0 is left.orig, 1 is edit, 2 is right.orig
+        let dv, fromOrig;
+        if (currentIndex === 0) { // Left to Center
+            dv = editorInstance.left; fromOrig = true;
+        } else if (currentIndex === 2) { // Right to Center
+            dv = editorInstance.right; fromOrig = true;
+        } else { // Center to Left or Right
+            dv = (direction === 'left') ? editorInstance.left : editorInstance.right;
+            fromOrig = false;
         }
+        targetStart = mapLine(dv.chunks, sourceStart, fromOrig);
+        targetEnd = mapLine(dv.chunks, sourceEnd, fromOrig);
     }
 
     const text = activeCM.getRange({line: sourceStart, ch: 0}, {line: sourceEnd, ch: activeCM.getLine(sourceEnd).length});
