@@ -119,6 +119,36 @@ body {
   border-bottom: 1px solid red;
 }
 
+/* Dark theme overrides for CodeMirror MergeView */
+/*
+.CodeMirror-merge-gap {
+  background: #272822;
+  border-left: 1px solid #444;
+  border-right: 1px solid #444;
+}
+
+.CodeMirror-merge-r-connect, 
+.CodeMirror-merge-l-connect {
+  fill: rgba(75, 75, 0, 0.2) !important;
+  stroke: rgba(75, 75, 0, 0.4) !important;
+}
+*/
+
+.CodeMirror-merge-r-chunk { background: rgba(127, 127, 0, 0.5) !important; }
+.CodeMirror-merge-l-chunk { background: rgba(127, 127, 0, 0.5) !important; }
+
+/*
+.CodeMirror-merge-r-inserted, 
+.CodeMirror-merge-l-inserted {
+  background-color: rgba(0, 255, 0, 0.5) !important;
+}
+
+.CodeMirror-merge-r-deleted, 
+.CodeMirror-merge-l-deleted {
+  background-color: rgba(255, 0, 0, 0.5) !important;
+}
+*/
+
 .pane-label {
   position: absolute;
   top: 0;
