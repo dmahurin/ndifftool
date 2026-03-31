@@ -130,18 +130,19 @@ function setupEditor(cm, index) {
         }
 
         if (!isEditMode && obj.ranges && obj.origin !== 'setValue' && obj.origin !== 'clearSelection') {
-            obj.ranges.forEach(range => {
-                const startLine = Math.min(range.anchor.line, range.head.line);
-                const endLine = Math.max(range.anchor.line, range.head.line);
-                
+           // change to select by whole lines
+           obj.ranges.forEach(range => {
+                // drag up or down
                 if (range.head.line <= range.anchor.line) {
-                    // Clicking or dragging UP: keep head at the top
-                    range.anchor = {line: endLine, ch: cm.getLine(endLine).length};
-                    range.head = {line: startLine, ch: 0};
+                    range.anchor = {line: range.anchor.ch !=0 ? range.anchor.line + 1 : range.anchor.line, ch: 0}; //ch: cm.getLine(range.anchor.line).length};
+                    if (range.head.outside && range.head.line) {
+                      range.head = {line: range.head.line - 1, ch: cm.getLine(range.head.line - 1).length};
+                    } else {
+                      range.head = {line: range.head.line, ch: 0};
+                    }
                 } else {
-                    // Dragging DOWN: keep head at the bottom to allow drag to continue
-                    range.anchor = {line: startLine, ch: 0};
-                    range.head = {line: endLine, ch: cm.getLine(endLine).length};
+                    range.anchor = {line: range.anchor.line, ch: 0};
+                    range.head = {line: range.head.ch !=0 ? range.head.line + 1 : range.head.line, ch: 0};
                 }
             });
         }
@@ -159,22 +160,6 @@ function setupEditor(cm, index) {
         if (currentLayout === 4) refreshFourColumnChunks();
     });
 }
-
-// Global mouseup to reverse selections after dragging
-window.addEventListener('mouseup', () => {
-    if (!isEditMode && activeCM) {
-        const from = activeCM.getCursor('from');
-        const to = activeCM.getCursor('to');
-        // Always force head to start of top line (reversed selection)
-        activeCM.setSelection(
-            {line: to.line, ch: activeCM.getLine(to.line).length},
-            {line: from.line, ch: 0},
-            {scroll: false}
-        );
-        // Ensure the top line is visible
-        activeCM.scrollIntoView({line: from.line, ch: 0});
-    }
-});
 
 function setLayout(cols) {
     currentLayout = cols;
