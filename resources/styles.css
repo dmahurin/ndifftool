@@ -17,7 +17,7 @@ body {
 #toolbar {
   padding: 5px 10px;
   height: 40px;
-  background-color: #f0f0f0;
+  background-color: #7f7f7f0f;
   border-bottom: 1px solid #ccc;
   display: flex;
   gap: 10px;
@@ -51,7 +51,7 @@ body {
   font-weight: bold;
   padding: 2px 4px;
   border-radius: 3px;
-  background: #eee;
+  background: #7771;
 }
 
 .mode-indicator-edit {
@@ -82,10 +82,9 @@ body {
 
 /* Merge UI improvements */
 .CodeMirror-merge-copy {
-  color: #555 !important;
   font-family: monospace;
   font-weight: bold;
-  background: #fdfdfd;
+  background: #7f7f7f02;
   border: 1px solid #ccc;
   border-radius: 3px;
   width: 16px;
@@ -98,15 +97,17 @@ body {
   z-index: 20;
 }
 
-.CodeMirror-merge-copy:hover {
-  background: #e0e0e0;
-  color: #000 !important;
+.CodeMirror-merge-gap {
+  background-color: #7f7f7f0f;
 }
 
 .CodeMirror-merge-copy-push {
   /* Offset from the default pull button */
   transform: translateY(18px); 
 }
+
+.CodeMirror-merge-r-chunk { background: rgba(127, 127, 0, 0.5) !important; }
+.CodeMirror-merge-l-chunk { background: rgba(127, 127, 0, 0.5) !important; }
 
 /* Diff highlighting for 4-column mode */
 .cm-merge-r-inserted {
