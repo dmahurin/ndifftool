@@ -101,6 +101,12 @@ function handleKey(cm, e) {
     } else if (e.keyCode === 27 && isEditMode) { // Escape
         e.preventDefault();
         setMode(false);
+    } else if ((e.keyCode === 8 || e.keyCode === 46) && !isEditMode) { // Backspace or Delete
+        e.preventDefault();
+        cm.replaceSelection("");
+    } else if (e.keyCode === 90 && (e.metaKey || e.ctrlKey) && !isEditMode) { // Cmd/Ctrl + Z
+        e.preventDefault();
+        cm.undo();
     }
 }
 function clearOtherSelections(currentCM) {
