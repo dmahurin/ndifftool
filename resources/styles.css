@@ -1,3 +1,59 @@
+:root {
+  --toolbar-bg: #f0f0f0;
+  --toolbar-border: #ccc;
+  --mode-indicator-bg: #eee;
+  --mode-indicator-text: #000;
+  --edit-mode-indicator-bg: #ffecb3;
+  --edit-mode-indicator-text: #856404;
+  --editor-active-shadow: rgba(0, 120, 215, 0.5);
+  --editor-active-border: #0078d7;
+  --merge-gap-bg: #f7f7f7;
+  --merge-gap-border: #ddd;
+  --connect-fill: rgba(0, 120, 215, 0.1);
+  --connect-stroke: rgba(0, 120, 215, 0.3);
+  --chunk-bg: rgba(255, 255, 0, 0.15);
+  --inserted-bg: rgba(0, 255, 0, 0.15);
+  --deleted-bg: rgba(255, 0, 0, 0.15);
+  --modal-bg: #fff;
+  --modal-text: #000;
+  --modal-border: #ddd;
+  --modal-list-bg: #f9f9f9;
+  --modal-btn-bg: #eee;
+  --modal-btn-text: #000;
+  --modal-btn-border: #ccc;
+  --modal-save-btn-bg: #4caf50;
+  --modal-save-btn-text: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --toolbar-bg: #333;
+    --toolbar-border: #444;
+    --mode-indicator-bg: #444;
+    --mode-indicator-text: #f8f8f2;
+    --edit-mode-indicator-bg: #5a4b1f;
+    --edit-mode-indicator-text: #ffecb3;
+    --editor-active-shadow: rgba(0, 120, 215, 0.5);
+    --editor-active-border: #0078d7;
+    --merge-gap-bg: #272822;
+    --merge-gap-border: #444;
+    --connect-fill: rgba(75, 75, 0, 0.2);
+    --connect-stroke: rgba(75, 75, 0, 0.4);
+    --chunk-bg: rgba(75, 75, 0, 0.15);
+    --inserted-bg: rgba(0, 255, 0, 0.15);
+    --deleted-bg: rgba(255, 0, 0, 0.15);
+    --modal-bg: #272822;
+    --modal-text: #f8f8f2;
+    --modal-border: #444;
+    --modal-list-bg: #1e1e1e;
+    --modal-btn-bg: #3e3e3e;
+    --modal-btn-text: #f8f8f2;
+    --modal-btn-border: #555;
+    --modal-save-btn-bg: #2e5e2e;
+    --modal-save-btn-text: #f8f8f2;
+  }
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -17,8 +73,8 @@ body {
 #toolbar {
   padding: 5px 10px;
   height: 40px;
-  background-color: #7f7f7f0f;
-  border-bottom: 1px solid #ccc;
+  background-color: var(--toolbar-bg);
+  border-bottom: 1px solid var(--toolbar-border);
   display: flex;
   gap: 10px;
   align-items: center;
@@ -42,8 +98,8 @@ body {
 }
 
 .editor-active {
-  box-shadow: inset 0 0 10px rgba(0, 120, 215, 0.5);
-  border: 1px solid #0078d7 !important;
+  box-shadow: inset 0 0 10px var(--editor-active-shadow);
+  border: 1px solid var(--editor-active-border) !important;
 }
 
 .mode-indicator {
@@ -51,29 +107,30 @@ body {
   font-weight: bold;
   padding: 2px 4px;
   border-radius: 3px;
-  background: #7771;
+  background: var(--mode-indicator-bg);
+  color: var(--mode-indicator-text);
 }
 
 .mode-indicator-edit {
-  background: #ffecb3;
-  color: #856404;
+  background: var(--edit-mode-indicator-bg);
+  color: var(--edit-mode-indicator-text);
 }
 
 /* Custom 4-column layout styles */
 .four-column-layout {
   display: flex;
   height: calc(100vh - 40px);
-  background-color: #ccc;
+  background-color: var(--toolbar-border);
   gap: 1px;
 }
 
 .four-column-layout > div {
   flex: 1;
-  background-color: white;
+  background-color: var(--modal-bg);
   position: relative;
   overflow: hidden;
   min-width: 0;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid var(--toolbar-border);
 }
 
 .four-column-layout .CodeMirror {
@@ -82,9 +139,10 @@ body {
 
 /* Merge UI improvements */
 .CodeMirror-merge-copy {
+  color: #555 !important;
   font-family: monospace;
   font-weight: bold;
-  background: #7f7f7f02;
+  background: #fdfdfd;
   border: 1px solid #ccc;
   border-radius: 3px;
   width: 16px;
@@ -97,8 +155,9 @@ body {
   z-index: 20;
 }
 
-.CodeMirror-merge-gap {
-  background-color: #7f7f7f0f;
+.CodeMirror-merge-copy:hover {
+  background: #e0e0e0;
+  color: #000 !important;
 }
 
 .CodeMirror-merge-copy-push {
@@ -106,48 +165,41 @@ body {
   transform: translateY(18px); 
 }
 
-.CodeMirror-merge-r-chunk { background: rgba(127, 127, 0, 0.5) !important; }
-.CodeMirror-merge-l-chunk { background: rgba(127, 127, 0, 0.5) !important; }
-
 /* Diff highlighting for 4-column mode */
 .cm-merge-r-inserted {
-  background-color: rgba(0, 255, 0, 0.2);
+  background-color: var(--inserted-bg);
 }
 
 .cm-merge-r-deleted {
-  background-color: rgba(255, 0, 0, 0.2);
+  background-color: var(--deleted-bg);
   border-bottom: 1px solid red;
 }
 
-/* Dark theme overrides for CodeMirror MergeView */
-/*
+/* CodeMirror MergeView overrides */
 .CodeMirror-merge-gap {
-  background: #272822;
-  border-left: 1px solid #444;
-  border-right: 1px solid #444;
+  background: var(--merge-gap-bg);
+  border-left: 1px solid var(--merge-gap-border);
+  border-right: 1px solid var(--merge-gap-border);
 }
 
 .CodeMirror-merge-r-connect, 
 .CodeMirror-merge-l-connect {
-  fill: rgba(75, 75, 0, 0.2) !important;
-  stroke: rgba(75, 75, 0, 0.4) !important;
+  fill: var(--connect-fill) !important;
+  stroke: var(--connect-stroke) !important;
 }
-*/
 
-.CodeMirror-merge-r-chunk { background: rgba(127, 127, 0, 0.5) !important; }
-.CodeMirror-merge-l-chunk { background: rgba(127, 127, 0, 0.5) !important; }
+.CodeMirror-merge-r-chunk { background: var(--chunk-bg) !important; }
+.CodeMirror-merge-l-chunk { background: var(--chunk-bg) !important; }
 
-/*
 .CodeMirror-merge-r-inserted, 
 .CodeMirror-merge-l-inserted {
-  background-color: rgba(0, 255, 0, 0.5) !important;
+  background-color: var(--inserted-bg) !important;
 }
 
 .CodeMirror-merge-r-deleted, 
 .CodeMirror-merge-l-deleted {
-  background-color: rgba(255, 0, 0, 0.5) !important;
+  background-color: var(--deleted-bg) !important;
 }
-*/
 
 .pane-label {
   position: absolute;
@@ -175,10 +227,10 @@ body {
 }
 
 .modal-content {
-  background-color: #272822;
-  color: #f8f8f2;
+  background-color: var(--modal-bg);
+  color: var(--modal-text);
   padding: 20px;
-  border: 1px solid #444;
+  border: 1px solid var(--modal-border);
   border-radius: 5px;
   width: 400px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.5);
@@ -186,15 +238,15 @@ body {
 
 .modal-content h3 {
   margin-top: 0;
-  color: #f8f8f2;
+  color: var(--modal-text);
 }
 
 #modified-files-list {
   margin: 15px 0;
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid #444;
-  background-color: #1e1e1e;
+  border: 1px solid var(--modal-border);
+  background-color: var(--modal-list-bg);
   padding: 10px;
 }
 
@@ -207,22 +259,20 @@ body {
 .modal-buttons button {
   padding: 5px 15px;
   cursor: pointer;
-  background: #3e3e3e;
-  color: #f8f8f2;
-  border: 1px solid #555;
+  background: var(--modal-btn-bg);
+  color: var(--modal-btn-text);
+  border: 1px solid var(--modal-btn-border);
   border-radius: 3px;
 }
 
 .modal-buttons button:hover {
-  background: #4e4e4e;
+  opacity: 0.8;
 }
 
 #modal-save-btn {
-  background: #2e5e2e;
-}
-
-#modal-save-btn:hover {
-  background: #3e6e3e;
+  background: var(--modal-save-btn-bg);
+  color: var(--modal-save-btn-text);
+  border-color: var(--modal-save-btn-bg);
 }
 
 .file-item {

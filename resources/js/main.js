@@ -181,13 +181,23 @@ function setLayout(cols) {
     else if (cols === 4) initFourColumnView();
 }
 
+function getTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'monokai' : 'default';
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const theme = getTheme();
+    allEditors.forEach(cm => cm.setOption('theme', theme));
+});
+
 function initMergeView(cols) {
     const container = document.getElementById('editor-container');
     const mode = getMode(files[0]?.path);
+    const theme = getTheme();
     const options = {
         lineNumbers: true, mode: mode,
         highlightDifferences: true, connect: 'align',
-        collapseIdentical: false, theme: 'monokai',
+        collapseIdentical: false, theme: theme,
         revertButtons: true
     };
 
@@ -261,6 +271,7 @@ function initFourColumnView() {
 
     const labels = ['BASE', 'LOCAL', 'REMOTE', 'MERGE'];
     const mode = getMode(files[0]?.path);
+    const theme = getTheme();
 
     for (let i = 0; i < 4; i++) {
         const pane = document.createElement('div');
@@ -270,7 +281,7 @@ function initFourColumnView() {
 
         const cm = CodeMirror(pane, {
             value: files[i]?.content || '',
-            lineNumbers: true, mode: mode, theme: 'monokai'
+            lineNumbers: true, mode: mode, theme: theme
         });
         setupEditor(cm, i);
     }
