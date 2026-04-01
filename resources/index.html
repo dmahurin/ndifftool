@@ -23,6 +23,20 @@
       </div>
     </div>
 
+    <!-- Save Confirmation Modal -->
+    <div id="save-modal" class="modal">
+      <div class="modal-content">
+        <h3>Save Modified Files?</h3>
+        <p>The following files have been modified. Select the ones you want to save:</p>
+        <div id="modified-files-list"></div>
+        <div class="modal-buttons">
+          <button id="modal-save-btn">Save & Exit</button>
+          <button id="modal-discard-btn">Discard & Exit</button>
+          <button id="modal-cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Dependencies -->
     <script src="js/diff_match_patch.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>

@@ -20,7 +20,7 @@ async function init() {
     if (typeof diff_match_patch === 'undefined') throw new Error('diff_match_patch library not loaded');
 
     Neutralino.init();
-    Neutralino.events.on("windowClose", () => Neutralino.app.exit());
+    Neutralino.events.on("windowClose", handleWindowClose);
 
     let args = [];
     const dashDashIndex = NL_ARGS.indexOf('--');
@@ -35,7 +35,7 @@ async function init() {
         for (let path of args) {
             try {
                 let content = await Neutralino.filesystem.readFile(path);
-                files.push({ path, content });
+                files.push({ path, content, originalContent: content, modified: false });
             } catch (err) {
                 console.error(`Error reading ${path}:`, err);
             }
@@ -162,7 +162,10 @@ function setupEditor(cm, index) {
     });
 
     cm.on('change', () => {
-        if (files[index]) files[index].content = cm.getValue();
+        if (files[index]) {
+            files[index].content = cm.getValue();
+            files[index].modified = files[index].content !== files[index].originalContent;
+        }
         if (currentLayout === 4) refreshFourColumnChunks();
     });
 }
@@ -380,4 +383,62 @@ async function saveResult() {
         let savePath = await Neutralino.os.showSaveDialog('Save Result');
         if (savePath) await Neutralino.filesystem.writeFile(savePath, result);
     } catch (err) { console.error('Save failed:', err); }
+}
+
+async function handleWindowClose() {
+    const modifiedFiles = files.filter(f => f.modified);
+    if (modifiedFiles.length === 0) {
+        Neutralino.app.exit();
+        return;
+    }
+
+    const modal = document.getElementById('save-modal');
+    const list = document.getElementById('modified-files-list');
+    list.innerHTML = '';
+
+    modifiedFiles.forEach((file, i) => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `file-cb-${i}`;
+        checkbox.checked = true;
+        checkbox.dataset.path = file.path;
+        
+        const label = document.createElement('label');
+        label.htmlFor = `file-cb-${i}`;
+        label.innerText = file.path.split('/').pop();
+        
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        list.appendChild(div);
+    });
+
+    modal.style.display = 'flex';
+
+    document.getElementById('modal-save-btn').onclick = async () => {
+        const checkboxes = list.querySelectorAll('input[type="checkbox"]');
+        for (let cb of checkboxes) {
+            if (cb.checked) {
+                const path = cb.dataset.path;
+                const file = files.find(f => f.path === path);
+                if (file) {
+                    try {
+                        await Neutralino.filesystem.writeFile(path, file.content);
+                    } catch (err) {
+                        console.error(`Failed to save ${path}:`, err);
+                    }
+                }
+            }
+        }
+        Neutralino.app.exit();
+    };
+
+    document.getElementById('modal-discard-btn').onclick = () => {
+        Neutralino.app.exit();
+    };
+
+    document.getElementById('modal-cancel-btn').onclick = () => {
+        modal.style.display = 'none';
+    };
 }
