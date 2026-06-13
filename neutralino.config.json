@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
-  "applicationId": "com.example.difftool",
+  "applicationId": "com.example.ndifftool",
   "version": "1.0.0",
   "defaultMode": "window",
   "port": 0,
@@ -33,7 +33,7 @@
   },
   "modes": {
     "window": {
-      "title": "difftool",
+      "title": "ndifftool",
       "width": 800,
       "height": 500,
       "minWidth": 400,
@@ -74,7 +74,7 @@
     }
   },
   "cli": {
-    "binaryName": "difftool",
+    "binaryName": "ndifftool",
     "resourcesPath": "/resources/",
     "extensionsPath": "/extensions/",
     "clientLibrary": "/resources/neutralino.js",

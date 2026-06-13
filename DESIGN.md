@@ -1,7 +1,7 @@
-# Design Document: Difftool
+# Design Document: ndifftool
 
 ## Overview
-Difftool is a modal graphical diff and merge utility inspired by tools like `diffuse` and `meld`. It provides a streamlined interface for comparing and merging text files, built using Neutralinojs for the desktop environment and CodeMirror 5 for the editor components.
+ndifftool is a modal graphical diff and merge utility inspired by tools like `diffuse` and `meld`. It provides a streamlined interface for comparing and merging text files, built using Neutralinojs for the desktop environment and CodeMirror 5 for the editor components.
 
 ## Core Philosophies
 - **Modal Operation**: Distinct separation between navigation/selection and text editing.
@@ -52,7 +52,7 @@ While 2 and 3-way views utilize the native CodeMirror Merge addon, the 4-column 
 
 ### File Integration
 - **Input**: Files are passed as CLI arguments.
-- **Output**: The "Save Result" button prompts the user for a destination path using the Neutralino OS dialog and writes the content of the primary "Edit" or "Merge" pane.
+- **Output**: The "Save" button writes the active pane back to its original file path.
 
 ## File Structure
 - `resources/index.html`: UI Structure and external dependencies.
