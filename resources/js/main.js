@@ -69,7 +69,14 @@ function setMode(edit) {
             // Exiting Edit Mode: Expand existing selection to full lines
             const from = cm.getCursor('from');
             const to = cm.getCursor('to');
-            if (from.line !== to.line || from.ch !== to.ch) {
+            if (cm === activeCM) {
+                const line = cm.getCursor().line;
+                cm.setSelection(
+                    {line: Math.min(line + 1, cm.lineCount()), ch: 0},
+                    {line, ch: 0},
+                    {scroll: false}
+                );
+            } else if (from.line !== to.line || from.ch !== to.ch) {
                 cm.setSelection(
                     {line: Math.max(from.line, to.line), ch: cm.getLine(Math.max(from.line, to.line)).length},
                     {line: Math.min(from.line, to.line), ch: 0},
