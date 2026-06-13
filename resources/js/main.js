@@ -297,21 +297,40 @@ function initFourColumnView() {
     });
 }
 
-function mapLine(chunks, line, fromOrig) {
+function mapLineBoundary(chunks, line, fromOrig, isRangeEnd) {
     if (!chunks || chunks.length === 0) return line;
     let offset = 0;
     for (let c of chunks) {
-        if (fromOrig) {
-            if (line < c.origFrom) return line + offset;
-            if (line < c.origTo) return c.editFrom; 
-            offset = c.editTo - c.origTo;
-        } else {
-            if (line < c.editFrom) return line + offset;
-            if (line < c.editTo) return c.origFrom;
-            offset = c.origTo - c.editTo;
+        const sourceFrom = fromOrig ? c.origFrom : c.editFrom;
+        const sourceTo = fromOrig ? c.origTo : c.editTo;
+        const targetFrom = fromOrig ? c.editFrom : c.origFrom;
+        const targetTo = fromOrig ? c.editTo : c.origTo;
+
+        if (line < sourceFrom) return line + offset;
+        if (line <= sourceTo) {
+            if (sourceFrom === sourceTo) return isRangeEnd ? targetTo : targetFrom;
+            if (line === sourceFrom) return targetFrom;
+            if (line === sourceTo) return targetTo;
+            return isRangeEnd ? targetTo : targetFrom;
         }
+        offset = targetTo - sourceTo;
     }
     return line + offset;
+}
+
+function selectedLineRange(cm) {
+    const from = cm.getCursor('from');
+    const to = cm.getCursor('to');
+    const end = to.ch === 0 && to.line > from.line ? to.line : to.line + 1;
+    return {start: from.line, end};
+}
+
+function lineBoundaryPos(cm, line) {
+    if (line >= cm.lineCount()) {
+        const lastLine = cm.lastLine();
+        return {line: lastLine, ch: cm.getLine(lastLine).length};
+    }
+    return {line, ch: 0};
 }
 
 function moveSelectedLines(direction) {
@@ -327,25 +346,22 @@ function moveSelectedLines(direction) {
     if (targetIndex < 0 || targetIndex >= allEditors.length) return;
     
     const targetCM = allEditors[targetIndex];
-    const from = activeCM.getCursor('from');
-    const to = activeCM.getCursor('to');
-
-    let sourceStart = from.line, sourceEnd = to.line;
+    const sourceRange = selectedLineRange(activeCM);
     let targetStart, targetEnd;
 
     if (currentLayout === 4) {
         // Mapping in 4-column: Source -> BASE -> Target
-        let baseStart = (currentIndex === 0) ? sourceStart : mapLine(columnChunks[currentIndex], sourceStart, false);
-        let baseEnd = (currentIndex === 0) ? sourceEnd : mapLine(columnChunks[currentIndex], sourceEnd, false);
+        let baseStart = (currentIndex === 0) ? sourceRange.start : mapLineBoundary(columnChunks[currentIndex], sourceRange.start, false, false);
+        let baseEnd = (currentIndex === 0) ? sourceRange.end : mapLineBoundary(columnChunks[currentIndex], sourceRange.end, false, true);
         
-        targetStart = (targetIndex === 0) ? baseStart : mapLine(columnChunks[targetIndex], baseStart, true);
-        targetEnd = (targetIndex === 0) ? baseEnd : mapLine(columnChunks[targetIndex], baseEnd, true);
+        targetStart = (targetIndex === 0) ? baseStart : mapLineBoundary(columnChunks[targetIndex], baseStart, true, false);
+        targetEnd = (targetIndex === 0) ? baseEnd : mapLineBoundary(columnChunks[targetIndex], baseEnd, true, true);
     } else if (currentLayout === 2) {
         // 2-way: index 0 is edit, index 1 is right.orig
         const dv = editorInstance.right;
         const fromOrig = (currentIndex === 1);
-        targetStart = mapLine(dv.chunks, sourceStart, fromOrig);
-        targetEnd = mapLine(dv.chunks, sourceEnd, fromOrig);
+        targetStart = mapLineBoundary(dv.chunks, sourceRange.start, fromOrig, false);
+        targetEnd = mapLineBoundary(dv.chunks, sourceRange.end, fromOrig, true);
     } else if (currentLayout === 3) {
         // 3-way: index 0 is left.orig, 1 is edit, 2 is right.orig
         let dv, fromOrig;
@@ -357,17 +373,17 @@ function moveSelectedLines(direction) {
             dv = (direction === 'left') ? editorInstance.left : editorInstance.right;
             fromOrig = false;
         }
-        targetStart = mapLine(dv.chunks, sourceStart, fromOrig);
-        targetEnd = mapLine(dv.chunks, sourceEnd, fromOrig);
+        targetStart = mapLineBoundary(dv.chunks, sourceRange.start, fromOrig, false);
+        targetEnd = mapLineBoundary(dv.chunks, sourceRange.end, fromOrig, true);
     }
 
-    const text = activeCM.getRange({line: sourceStart, ch: 0}, {line: sourceEnd, ch: activeCM.getLine(sourceEnd).length});
-    targetCM.replaceRange(text, {line: targetStart, ch: 0}, {line: targetEnd, ch: targetCM.getLine(targetEnd).length});
+    const text = activeCM.getRange(lineBoundaryPos(activeCM, sourceRange.start), lineBoundaryPos(activeCM, sourceRange.end));
+    targetCM.replaceRange(text, lineBoundaryPos(targetCM, targetStart), lineBoundaryPos(targetCM, targetEnd));
     
-    const newEndLine = targetStart + (sourceEnd - sourceStart);
+    const newEndLine = targetStart + (sourceRange.end - sourceRange.start);
     // Reverse selection: anchor at bottom, head at top (ch 0)
     targetCM.setSelection(
-        {line: newEndLine, ch: targetCM.getLine(newEndLine).length},
+        lineBoundaryPos(targetCM, newEndLine),
         {line: targetStart, ch: 0}
     );
     clearOtherSelections(targetCM);
