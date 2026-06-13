@@ -1,6 +1,7 @@
 NEU ?= neu
+BUILD_FLAGS ?= --release --embed-resources
 
-.PHONY: all check bootstrap update ensure-assets build run serve clean distclean help
+.PHONY: all check bootstrap update ensure-assets build app run serve clean distclean help
 
 all: build
 
@@ -23,7 +24,10 @@ ensure-assets: check
 	fi
 
 build: ensure-assets
-	$(NEU) build --release
+	$(NEU) build $(BUILD_FLAGS)
+
+app: ensure-assets
+	$(NEU) build $(BUILD_FLAGS) --macos-bundle
 
 run: ensure-assets
 	$(NEU) run
@@ -40,7 +44,8 @@ distclean: clean
 help:
 	@echo "Targets:"
 	@echo "  make bootstrap  Download Neutralino runtime and client assets"
-	@echo "  make build      Build a release package in dist/"
+	@echo "  make build      Build standalone release binaries in dist/"
+	@echo "  make app        Build a standalone macOS .app bundle in dist/"
 	@echo "  make run        Run the app in development mode"
 	@echo "  make serve      Run with the inspector enabled"
 	@echo "  make clean      Remove release artifacts"
