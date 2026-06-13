@@ -116,15 +116,15 @@ body {
   color: var(--edit-mode-indicator-text);
 }
 
-/* Custom 4-column layout styles */
-.four-column-layout {
+/* Custom multi-column layout styles */
+.multi-column-layout {
   display: flex;
   height: calc(100vh - 40px);
   background-color: var(--toolbar-border);
   gap: 1px;
 }
 
-.four-column-layout > div {
+.multi-column-layout > div {
   flex: 1;
   background-color: var(--modal-bg);
   position: relative;
@@ -133,7 +133,7 @@ body {
   border-right: 1px solid var(--toolbar-border);
 }
 
-.four-column-layout .CodeMirror {
+.multi-column-layout .CodeMirror {
   height: 100%;
 }
 
@@ -165,7 +165,7 @@ body {
   transform: translateY(18px); 
 }
 
-/* Diff highlighting for 4-column mode */
+/* Diff highlighting for custom multi-column mode */
 .ndiff-line-inserted {
   background-color: var(--inserted-bg);
 }

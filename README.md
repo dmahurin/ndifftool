@@ -8,6 +8,7 @@ The application is built with Neutralinojs and CodeMirror 5. It runs as a lightw
 
 - Compare two text files side by side.
 - Work with three panes for merge-style workflows.
+- Open four or more files in a synchronized multi-pane layout.
 - Use modal Line and Edit modes.
 - Select and move whole lines between adjacent panes.
 - Save the currently active pane back to its source file.
@@ -34,6 +35,12 @@ Run with three files for a three-pane merge workflow:
 
 ```sh
 ndifftool left.txt merged.txt right.txt
+```
+
+Run with four or more files for a custom multi-pane comparison:
+
+```sh
+ndifftool file1.txt file2.txt file3.txt file4.txt file5.txt
 ```
 
 The active pane is highlighted. Click a pane to make it active, select lines in Line mode, then use the Left or Right buttons to copy the selected line range to the adjacent pane.

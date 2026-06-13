@@ -4,9 +4,9 @@ let currentLayout = 2;
 let activeCM = null; 
 let isEditMode = false;
 let allEditors = []; 
-let columnChunks = []; // Stored chunks for 4-column mode: [null, localChunks, remoteChunks, mergeChunks]
-let fourColumnHighlights = [];
-let fourColumnSpacers = [];
+let columnChunks = []; // Stored chunks for custom multi-pane mode. Index 0 is always null.
+let multiColumnHighlights = [];
+let multiColumnSpacers = [];
 
 window.addEventListener('DOMContentLoaded', () => {
     init().catch(err => {
@@ -44,7 +44,7 @@ async function init() {
         }
     }
 
-    if (files.length >= 4) currentLayout = 4;
+    if (files.length >= 4) currentLayout = files.length;
     else if (files.length === 3) currentLayout = 3;
     else currentLayout = 2;
 
@@ -176,7 +176,7 @@ function setupEditor(cm, index) {
             files[index].content = cm.getValue();
             files[index].modified = files[index].content !== files[index].originalContent;
         }
-        if (currentLayout === 4) refreshFourColumnChunks();
+        if (currentLayout >= 4) refreshMultiColumnChunks();
     });
 }
 
@@ -184,13 +184,13 @@ function setLayout(cols) {
     currentLayout = cols;
     allEditors = [];
     columnChunks = [];
-    fourColumnHighlights = [];
-    fourColumnSpacers = [];
+    multiColumnHighlights = [];
+    multiColumnSpacers = [];
     const container = document.getElementById('editor-container');
     container.innerHTML = ''; 
 
     if (cols === 2 || cols === 3) initMergeView(cols);
-    else if (cols === 4) initFourColumnView();
+    else if (cols >= 4) initMultiColumnView();
 }
 
 function getTheme() {
@@ -267,36 +267,36 @@ function getLineChunks(text1, text2) {
     return chunks;
 }
 
-function clearFourColumnHighlights() {
-    fourColumnHighlights.forEach(({cm, line, className}) => {
+function clearMultiColumnHighlights() {
+    multiColumnHighlights.forEach(({cm, line, className}) => {
         cm.removeLineClass(line, 'background', className);
     });
-    fourColumnHighlights = [];
+    multiColumnHighlights = [];
 }
 
-function clearFourColumnSpacers() {
-    fourColumnSpacers.forEach(widget => widget.clear());
-    fourColumnSpacers = [];
+function clearMultiColumnSpacers() {
+    multiColumnSpacers.forEach(widget => widget.clear());
+    multiColumnSpacers = [];
 }
 
-function addFourColumnLineClass(cm, line, className, seen) {
+function addMultiColumnLineClass(cm, line, className, seen) {
     if (!cm || line < cm.firstLine() || line > cm.lastLine()) return;
 
     const key = `${allEditors.indexOf(cm)}:${line}:${className}`;
     if (seen.has(key)) return;
 
     cm.addLineClass(line, 'background', className);
-    fourColumnHighlights.push({cm, line, className});
+    multiColumnHighlights.push({cm, line, className});
     seen.add(key);
 }
 
-function addFourColumnRangeClass(cm, from, to, className, seen) {
+function addMultiColumnRangeClass(cm, from, to, className, seen) {
     for (let line = from; line < to; line++) {
-        addFourColumnLineClass(cm, line, className, seen);
+        addMultiColumnLineClass(cm, line, className, seen);
     }
 }
 
-function addFourColumnSpacer(cm, boundary, rows) {
+function addMultiColumnSpacer(cm, boundary, rows) {
     if (!cm || rows <= 0) return;
 
     const node = document.createElement('div');
@@ -314,7 +314,7 @@ function addFourColumnSpacer(cm, boundary, rows) {
         options.above = true;
     }
 
-    fourColumnSpacers.push(cm.addLineWidget(line, node, options));
+    multiColumnSpacers.push(cm.addLineWidget(line, node, options));
 }
 
 function baseBoundaryToPaneBoundary(index, boundary, isRangeEnd) {
@@ -323,8 +323,8 @@ function baseBoundaryToPaneBoundary(index, boundary, isRangeEnd) {
 }
 
 function applyInsertionAlignment(boundary, chunksByPane) {
-    const rows = [0, 0, 0, 0];
-    for (let index = 1; index < 4; index++) {
+    const rows = Array(allEditors.length).fill(0);
+    for (let index = 1; index < allEditors.length; index++) {
         const chunk = chunksByPane[index];
         if (chunk) rows[index] = chunk.editTo - chunk.editFrom;
     }
@@ -332,20 +332,21 @@ function applyInsertionAlignment(boundary, chunksByPane) {
     const maxRows = Math.max(...rows);
     if (maxRows === 0) return;
 
-    addFourColumnSpacer(allEditors[0], boundary, maxRows);
-    for (let index = 1; index < 4; index++) {
+    addMultiColumnSpacer(allEditors[0], boundary, maxRows);
+    for (let index = 1; index < allEditors.length; index++) {
         const chunk = chunksByPane[index];
         const paneBoundary = chunk ? chunk.editTo : baseBoundaryToPaneBoundary(index, boundary, false);
-        addFourColumnSpacer(allEditors[index], paneBoundary, maxRows - rows[index]);
+        addMultiColumnSpacer(allEditors[index], paneBoundary, maxRows - rows[index]);
     }
 }
 
 function applyRangeAlignment(origFrom, origTo, chunksByPane) {
     const baseRows = origTo - origFrom;
-    const rows = [baseRows, baseRows, baseRows, baseRows];
-    const boundaries = [origTo, null, null, null];
+    const rows = Array(allEditors.length).fill(baseRows);
+    const boundaries = Array(allEditors.length).fill(null);
+    boundaries[0] = origTo;
 
-    for (let index = 1; index < 4; index++) {
+    for (let index = 1; index < allEditors.length; index++) {
         const chunk = chunksByPane[index];
         if (chunk) {
             rows[index] = chunk.editTo - chunk.editFrom;
@@ -358,19 +359,19 @@ function applyRangeAlignment(origFrom, origTo, chunksByPane) {
     const maxRows = Math.max(...rows);
     if (maxRows <= baseRows && rows.every(rowCount => rowCount === maxRows)) return;
 
-    for (let index = 0; index < 4; index++) {
-        addFourColumnSpacer(allEditors[index], boundaries[index], maxRows - rows[index]);
+    for (let index = 0; index < allEditors.length; index++) {
+        addMultiColumnSpacer(allEditors[index], boundaries[index], maxRows - rows[index]);
     }
 }
 
-function applyFourColumnAlignment() {
-    clearFourColumnSpacers();
-    if (currentLayout !== 4 || allEditors.length < 4) return;
+function applyMultiColumnAlignment() {
+    clearMultiColumnSpacers();
+    if (currentLayout < 4 || allEditors.length < 4) return;
 
     const insertionGroups = new Map();
     const rangeGroups = new Map();
 
-    for (let index = 1; index < 4; index++) {
+    for (let index = 1; index < allEditors.length; index++) {
         (columnChunks[index] || []).forEach(chunk => {
             const origLen = chunk.origTo - chunk.origFrom;
             const editLen = chunk.editTo - chunk.editFrom;
@@ -378,11 +379,11 @@ function applyFourColumnAlignment() {
 
             if (origLen === 0) {
                 const key = String(chunk.origFrom);
-                if (!insertionGroups.has(key)) insertionGroups.set(key, [null, null, null, null]);
+                if (!insertionGroups.has(key)) insertionGroups.set(key, Array(allEditors.length).fill(null));
                 insertionGroups.get(key)[index] = chunk;
             } else {
                 const key = `${chunk.origFrom}:${chunk.origTo}`;
-                if (!rangeGroups.has(key)) rangeGroups.set(key, [null, null, null, null]);
+                if (!rangeGroups.has(key)) rangeGroups.set(key, Array(allEditors.length).fill(null));
                 rangeGroups.get(key)[index] = chunk;
             }
         });
@@ -404,12 +405,12 @@ function applyFourColumnAlignment() {
         });
 }
 
-function applyFourColumnHighlights() {
-    clearFourColumnHighlights();
-    if (currentLayout !== 4 || allEditors.length < 4) return;
+function applyMultiColumnHighlights() {
+    clearMultiColumnHighlights();
+    if (currentLayout < 4 || allEditors.length < 4) return;
 
     const seen = new Set();
-    for (let index = 1; index < 4; index++) {
+    for (let index = 1; index < allEditors.length; index++) {
         const cm = allEditors[index];
         const chunks = columnChunks[index] || [];
 
@@ -418,39 +419,39 @@ function applyFourColumnHighlights() {
             const hasPaneLines = chunk.editFrom < chunk.editTo;
 
             if (hasBaseLines && hasPaneLines) {
-                addFourColumnRangeClass(allEditors[0], chunk.origFrom, chunk.origTo, 'ndiff-line-changed', seen);
-                addFourColumnRangeClass(cm, chunk.editFrom, chunk.editTo, 'ndiff-line-changed', seen);
+                addMultiColumnRangeClass(allEditors[0], chunk.origFrom, chunk.origTo, 'ndiff-line-changed', seen);
+                addMultiColumnRangeClass(cm, chunk.editFrom, chunk.editTo, 'ndiff-line-changed', seen);
             } else if (hasBaseLines) {
-                addFourColumnRangeClass(allEditors[0], chunk.origFrom, chunk.origTo, 'ndiff-line-deleted', seen);
+                addMultiColumnRangeClass(allEditors[0], chunk.origFrom, chunk.origTo, 'ndiff-line-deleted', seen);
             } else if (hasPaneLines) {
-                addFourColumnRangeClass(cm, chunk.editFrom, chunk.editTo, 'ndiff-line-inserted', seen);
+                addMultiColumnRangeClass(cm, chunk.editFrom, chunk.editTo, 'ndiff-line-inserted', seen);
             }
         });
     }
 }
 
-function refreshFourColumnChunks() {
+function refreshMultiColumnChunks() {
     if (files.length < 2) return;
     const base = files[0].content;
     columnChunks = [null];
-    for (let i = 1; i < 4; i++) {
+    for (let i = 1; i < allEditors.length; i++) {
         if (files[i]) columnChunks[i] = getLineChunks(base, files[i].content);
         else columnChunks[i] = [];
     }
-    applyFourColumnAlignment();
-    applyFourColumnHighlights();
+    applyMultiColumnAlignment();
+    applyMultiColumnHighlights();
 }
 
-function initFourColumnView() {
+function initMultiColumnView() {
     const container = document.getElementById('editor-container');
     const layout = document.createElement('div');
-    layout.className = 'four-column-layout';
+    layout.className = 'multi-column-layout';
     container.appendChild(layout);
 
     const mode = getMode(files[0]?.path);
     const theme = getTheme();
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < files.length; i++) {
         const pane = document.createElement('div');
         layout.appendChild(pane);
 
@@ -469,7 +470,7 @@ function initFourColumnView() {
         });
     });
 
-    refreshFourColumnChunks();
+    refreshMultiColumnChunks();
 }
 
 function mapLineBoundary(chunks, line, fromOrig, isRangeEnd) {
@@ -524,8 +525,8 @@ function moveSelectedLines(direction) {
     const sourceRange = selectedLineRange(activeCM);
     let targetStart, targetEnd;
 
-    if (currentLayout === 4) {
-        // Mapping in 4-column: Source -> first file -> Target
+    if (currentLayout >= 4) {
+        // Mapping in multi-column mode: Source -> first file -> Target
         let baseStart = (currentIndex === 0) ? sourceRange.start : mapLineBoundary(columnChunks[currentIndex], sourceRange.start, false, false);
         let baseEnd = (currentIndex === 0) ? sourceRange.end : mapLineBoundary(columnChunks[currentIndex], sourceRange.end, false, true);
         
