@@ -447,15 +447,12 @@ function initFourColumnView() {
     layout.className = 'four-column-layout';
     container.appendChild(layout);
 
-    const labels = ['BASE', 'LOCAL', 'REMOTE', 'MERGE'];
     const mode = getMode(files[0]?.path);
     const theme = getTheme();
 
     for (let i = 0; i < 4; i++) {
         const pane = document.createElement('div');
-        const label = document.createElement('div');
-        label.className = 'pane-label'; label.innerText = labels[i];
-        pane.appendChild(label); layout.appendChild(pane);
+        layout.appendChild(pane);
 
         const cm = CodeMirror(pane, {
             value: files[i]?.content || '',
@@ -528,7 +525,7 @@ function moveSelectedLines(direction) {
     let targetStart, targetEnd;
 
     if (currentLayout === 4) {
-        // Mapping in 4-column: Source -> BASE -> Target
+        // Mapping in 4-column: Source -> first file -> Target
         let baseStart = (currentIndex === 0) ? sourceRange.start : mapLineBoundary(columnChunks[currentIndex], sourceRange.start, false, false);
         let baseEnd = (currentIndex === 0) ? sourceRange.end : mapLineBoundary(columnChunks[currentIndex], sourceRange.end, false, true);
         

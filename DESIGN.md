@@ -42,12 +42,12 @@ The application operates in two primary modes, toggled via the keyboard:
 The tool dynamically adjusts its layout based on the number of input files provided via command-line arguments:
 - **2-Way Diff**: Standard left-right comparison.
 - **3-Way Merge**: Left (Original), Center (Merge Result), Right (Original).
-- **4-Way Merge**: BASE, LOCAL, REMOTE, and MERGE panes (Custom layout).
+- **4-Way Merge**: Four adjacent panes in a custom layout.
 
 ### 4-Column Implementation
 While 2 and 3-way views utilize the native CodeMirror Merge addon, the 4-column view is a custom implementation:
 - **Synchronization**: Scroll events in any pane are mirrored to all others.
-- **Diff Calculation**: Uses `diff_match_patch` to calculate line-level chunks between the BASE file and the other three versions.
+- **Diff Calculation**: Uses `diff_match_patch` to calculate line-level chunks between the first file and the other three versions.
 - **Mapping**: A `mapLine` utility translates line numbers between panes using calculated diff chunks, ensuring that merging "Local to Merge" correctly identifies the target line range even if the files have diverged in length.
 
 ### File Integration

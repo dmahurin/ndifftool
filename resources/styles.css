@@ -220,17 +220,6 @@ body {
   background-color: var(--deleted-bg) !important;
 }
 
-.pane-label {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: rgba(0,0,0,0.1);
-  padding: 2px 5px;
-  font-size: 10px;
-  z-index: 10;
-  pointer-events: none;
-}
-
 /* Modal Styling */
 .modal {
   display: none;
