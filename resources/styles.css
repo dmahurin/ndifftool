@@ -166,6 +166,19 @@ body {
 }
 
 /* Diff highlighting for 4-column mode */
+.ndiff-line-inserted {
+  background-color: var(--inserted-bg);
+}
+
+.ndiff-line-deleted {
+  background-color: var(--deleted-bg);
+  border-bottom: 1px solid red;
+}
+
+.ndiff-line-changed {
+  background-color: var(--chunk-bg);
+}
+
 .cm-merge-r-inserted {
   background-color: var(--inserted-bg);
 }

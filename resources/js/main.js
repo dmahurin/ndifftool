@@ -5,6 +5,7 @@ let activeCM = null;
 let isEditMode = false;
 let allEditors = []; 
 let columnChunks = []; // Stored chunks for 4-column mode: [null, localChunks, remoteChunks, mergeChunks]
+let fourColumnHighlights = [];
 
 window.addEventListener('DOMContentLoaded', () => {
     init().catch(err => {
@@ -263,6 +264,55 @@ function getLineChunks(text1, text2) {
     return chunks;
 }
 
+function clearFourColumnHighlights() {
+    fourColumnHighlights.forEach(({cm, line, className}) => {
+        cm.removeLineClass(line, 'background', className);
+    });
+    fourColumnHighlights = [];
+}
+
+function addFourColumnLineClass(cm, line, className, seen) {
+    if (!cm || line < cm.firstLine() || line > cm.lastLine()) return;
+
+    const key = `${allEditors.indexOf(cm)}:${line}:${className}`;
+    if (seen.has(key)) return;
+
+    cm.addLineClass(line, 'background', className);
+    fourColumnHighlights.push({cm, line, className});
+    seen.add(key);
+}
+
+function addFourColumnRangeClass(cm, from, to, className, seen) {
+    for (let line = from; line < to; line++) {
+        addFourColumnLineClass(cm, line, className, seen);
+    }
+}
+
+function applyFourColumnHighlights() {
+    clearFourColumnHighlights();
+    if (currentLayout !== 4 || allEditors.length < 4) return;
+
+    const seen = new Set();
+    for (let index = 1; index < 4; index++) {
+        const cm = allEditors[index];
+        const chunks = columnChunks[index] || [];
+
+        chunks.forEach(chunk => {
+            const hasBaseLines = chunk.origFrom < chunk.origTo;
+            const hasPaneLines = chunk.editFrom < chunk.editTo;
+
+            if (hasBaseLines && hasPaneLines) {
+                addFourColumnRangeClass(allEditors[0], chunk.origFrom, chunk.origTo, 'ndiff-line-changed', seen);
+                addFourColumnRangeClass(cm, chunk.editFrom, chunk.editTo, 'ndiff-line-changed', seen);
+            } else if (hasBaseLines) {
+                addFourColumnRangeClass(allEditors[0], chunk.origFrom, chunk.origTo, 'ndiff-line-deleted', seen);
+            } else if (hasPaneLines) {
+                addFourColumnRangeClass(cm, chunk.editFrom, chunk.editTo, 'ndiff-line-inserted', seen);
+            }
+        });
+    }
+}
+
 function refreshFourColumnChunks() {
     if (files.length < 2) return;
     const base = files[0].content;
@@ -271,6 +321,7 @@ function refreshFourColumnChunks() {
         if (files[i]) columnChunks[i] = getLineChunks(base, files[i].content);
         else columnChunks[i] = [];
     }
+    applyFourColumnHighlights();
 }
 
 function initFourColumnView() {
@@ -295,8 +346,6 @@ function initFourColumnView() {
         });
         setupEditor(cm, i);
     }
-    refreshFourColumnChunks();
-
     allEditors.forEach((cm, index) => {
         cm.on('scroll', (instance) => {
             const info = instance.getScrollInfo();
@@ -305,6 +354,8 @@ function initFourColumnView() {
             });
         });
     });
+
+    refreshFourColumnChunks();
 }
 
 function mapLineBoundary(chunks, line, fromOrig, isRangeEnd) {
