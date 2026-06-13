@@ -179,6 +179,12 @@ body {
   background-color: var(--chunk-bg);
 }
 
+.ndiff-align-spacer {
+  box-sizing: border-box;
+  background: var(--merge-gap-bg);
+  opacity: 0.55;
+}
+
 .cm-merge-r-inserted {
   background-color: var(--inserted-bg);
 }

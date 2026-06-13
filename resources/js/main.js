@@ -6,6 +6,7 @@ let isEditMode = false;
 let allEditors = []; 
 let columnChunks = []; // Stored chunks for 4-column mode: [null, localChunks, remoteChunks, mergeChunks]
 let fourColumnHighlights = [];
+let fourColumnSpacers = [];
 
 window.addEventListener('DOMContentLoaded', () => {
     init().catch(err => {
@@ -183,6 +184,8 @@ function setLayout(cols) {
     currentLayout = cols;
     allEditors = [];
     columnChunks = [];
+    fourColumnHighlights = [];
+    fourColumnSpacers = [];
     const container = document.getElementById('editor-container');
     container.innerHTML = ''; 
 
@@ -271,6 +274,11 @@ function clearFourColumnHighlights() {
     fourColumnHighlights = [];
 }
 
+function clearFourColumnSpacers() {
+    fourColumnSpacers.forEach(widget => widget.clear());
+    fourColumnSpacers = [];
+}
+
 function addFourColumnLineClass(cm, line, className, seen) {
     if (!cm || line < cm.firstLine() || line > cm.lastLine()) return;
 
@@ -286,6 +294,114 @@ function addFourColumnRangeClass(cm, from, to, className, seen) {
     for (let line = from; line < to; line++) {
         addFourColumnLineClass(cm, line, className, seen);
     }
+}
+
+function addFourColumnSpacer(cm, boundary, rows) {
+    if (!cm || rows <= 0) return;
+
+    const node = document.createElement('div');
+    node.className = 'ndiff-align-spacer';
+    node.style.height = `${rows * cm.defaultTextHeight()}px`;
+
+    let line = boundary;
+    let options = {noHScroll: true, coverGutter: false};
+    if (line <= cm.firstLine()) {
+        line = cm.firstLine();
+        options.above = true;
+    } else if (line > cm.lastLine()) {
+        line = cm.lastLine();
+    } else {
+        options.above = true;
+    }
+
+    fourColumnSpacers.push(cm.addLineWidget(line, node, options));
+}
+
+function baseBoundaryToPaneBoundary(index, boundary, isRangeEnd) {
+    if (index === 0) return boundary;
+    return mapLineBoundary(columnChunks[index], boundary, true, isRangeEnd);
+}
+
+function applyInsertionAlignment(boundary, chunksByPane) {
+    const rows = [0, 0, 0, 0];
+    for (let index = 1; index < 4; index++) {
+        const chunk = chunksByPane[index];
+        if (chunk) rows[index] = chunk.editTo - chunk.editFrom;
+    }
+
+    const maxRows = Math.max(...rows);
+    if (maxRows === 0) return;
+
+    addFourColumnSpacer(allEditors[0], boundary, maxRows);
+    for (let index = 1; index < 4; index++) {
+        const chunk = chunksByPane[index];
+        const paneBoundary = chunk ? chunk.editTo : baseBoundaryToPaneBoundary(index, boundary, false);
+        addFourColumnSpacer(allEditors[index], paneBoundary, maxRows - rows[index]);
+    }
+}
+
+function applyRangeAlignment(origFrom, origTo, chunksByPane) {
+    const baseRows = origTo - origFrom;
+    const rows = [baseRows, baseRows, baseRows, baseRows];
+    const boundaries = [origTo, null, null, null];
+
+    for (let index = 1; index < 4; index++) {
+        const chunk = chunksByPane[index];
+        if (chunk) {
+            rows[index] = chunk.editTo - chunk.editFrom;
+            boundaries[index] = chunk.editTo;
+        } else {
+            boundaries[index] = baseBoundaryToPaneBoundary(index, origTo, true);
+        }
+    }
+
+    const maxRows = Math.max(...rows);
+    if (maxRows <= baseRows && rows.every(rowCount => rowCount === maxRows)) return;
+
+    for (let index = 0; index < 4; index++) {
+        addFourColumnSpacer(allEditors[index], boundaries[index], maxRows - rows[index]);
+    }
+}
+
+function applyFourColumnAlignment() {
+    clearFourColumnSpacers();
+    if (currentLayout !== 4 || allEditors.length < 4) return;
+
+    const insertionGroups = new Map();
+    const rangeGroups = new Map();
+
+    for (let index = 1; index < 4; index++) {
+        (columnChunks[index] || []).forEach(chunk => {
+            const origLen = chunk.origTo - chunk.origFrom;
+            const editLen = chunk.editTo - chunk.editFrom;
+            if (origLen === 0 && editLen === 0) return;
+
+            if (origLen === 0) {
+                const key = String(chunk.origFrom);
+                if (!insertionGroups.has(key)) insertionGroups.set(key, [null, null, null, null]);
+                insertionGroups.get(key)[index] = chunk;
+            } else {
+                const key = `${chunk.origFrom}:${chunk.origTo}`;
+                if (!rangeGroups.has(key)) rangeGroups.set(key, [null, null, null, null]);
+                rangeGroups.get(key)[index] = chunk;
+            }
+        });
+    }
+
+    [...insertionGroups.entries()]
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .forEach(([boundary, chunksByPane]) => applyInsertionAlignment(Number(boundary), chunksByPane));
+
+    [...rangeGroups.entries()]
+        .sort((a, b) => {
+            const [aFrom] = a[0].split(':').map(Number);
+            const [bFrom] = b[0].split(':').map(Number);
+            return aFrom - bFrom;
+        })
+        .forEach(([range, chunksByPane]) => {
+            const [origFrom, origTo] = range.split(':').map(Number);
+            applyRangeAlignment(origFrom, origTo, chunksByPane);
+        });
 }
 
 function applyFourColumnHighlights() {
@@ -321,6 +437,7 @@ function refreshFourColumnChunks() {
         if (files[i]) columnChunks[i] = getLineChunks(base, files[i].content);
         else columnChunks[i] = [];
     }
+    applyFourColumnAlignment();
     applyFourColumnHighlights();
 }
 
