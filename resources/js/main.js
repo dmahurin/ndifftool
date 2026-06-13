@@ -413,11 +413,19 @@ function updateFileInfo() {
 }
 
 async function saveResult() {
-    let result = (currentLayout === 4) ? allEditors[3].getValue() : editorInstance.edit.getValue();
+    const index = allEditors.indexOf(activeCM);
+    const file = files[index];
+    if (!file) return;
+
     try {
-        let savePath = await Neutralino.os.showSaveDialog('Save Result');
-        if (savePath) await Neutralino.filesystem.writeFile(savePath, result);
-    } catch (err) { console.error('Save failed:', err); }
+        file.content = activeCM.getValue();
+        await Neutralino.filesystem.writeFile(file.path, file.content);
+        file.originalContent = file.content;
+        file.modified = false;
+        updateFileInfo();
+    } catch (err) {
+        console.error('Save failed:', err);
+    }
 }
 
 async function handleWindowClose() {
