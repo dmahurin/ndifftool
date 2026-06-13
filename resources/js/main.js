@@ -239,7 +239,9 @@ function getLineChunks(text1, text2) {
     let chunks = [];
     let line1 = 0, line2 = 0;
     
-    lineDiffs.forEach(([op, text]) => {
+    lineDiffs.forEach(diff => {
+        const op = diff[0];
+        const text = diff[1];
         const count = text.split('\n').length - 1;
         if (op === 0) { // EQUAL
             line1 += count;
