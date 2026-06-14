@@ -8,6 +8,13 @@ let columnChunks = []; // Stored chunks for custom multi-pane mode. Index 0 is a
 let multiColumnHighlights = [];
 let multiColumnSpacers = [];
 let scrollMarkerSeen = null;
+let scrollMarkerRanges = null;
+
+const scrollMarkerClasses = [
+    'ndiff-scroll-inserted',
+    'ndiff-scroll-deleted',
+    'ndiff-scroll-changed'
+];
 
 window.addEventListener('DOMContentLoaded', () => {
     init().catch(err => {
@@ -314,20 +321,80 @@ function getScrollMarkerLayer(cm) {
 
 function clearScrollDiffMarkers() {
     allEditors.forEach(cm => {
+        if (cm.ndiffScrollAnnotations) {
+            scrollMarkerClasses.forEach(className => {
+                if (cm.ndiffScrollAnnotations[className]) {
+                    cm.ndiffScrollAnnotations[className].update([]);
+                }
+            });
+        }
         if (cm.ndiffScrollMarkerLayer) cm.ndiffScrollMarkerLayer.innerHTML = '';
+    });
+}
+
+function getScrollAnnotation(cm, className) {
+    if (!cm.annotateScrollbar) return null;
+    if (!cm.ndiffScrollAnnotations) cm.ndiffScrollAnnotations = {};
+    if (!cm.ndiffScrollAnnotations[className]) {
+        cm.ndiffScrollAnnotations[className] = cm.annotateScrollbar({className});
+    }
+    return cm.ndiffScrollAnnotations[className];
+}
+
+function getMarkerRange(cm, from, to) {
+    const lineCount = cm.lineCount();
+    const lastLine = cm.lastLine();
+    const start = Math.max(cm.firstLine(), Math.min(from, lastLine));
+    let end = Math.max(start, Math.min(to, lineCount));
+
+    if (end === start && start < lastLine) {
+        end = start + 1;
+    }
+
+    return {
+        from: CodeMirror.Pos(start, 0),
+        to: end > lastLine ? CodeMirror.Pos(lastLine, cm.getLine(lastLine).length) : CodeMirror.Pos(end, 0)
+    };
+}
+
+function addAnnotatedScrollMarker(cm, from, to, className) {
+    const annotation = getScrollAnnotation(cm, className);
+    if (!annotation || !scrollMarkerRanges) return false;
+
+    let rangesByClass = scrollMarkerRanges.get(cm);
+    if (!rangesByClass) {
+        rangesByClass = new Map();
+        scrollMarkerRanges.set(cm, rangesByClass);
+    }
+    if (!rangesByClass.has(className)) rangesByClass.set(className, []);
+    rangesByClass.get(className).push(getMarkerRange(cm, from, to));
+    return true;
+}
+
+function applyAnnotatedScrollMarkers() {
+    if (!scrollMarkerRanges) return;
+
+    scrollMarkerRanges.forEach((rangesByClass, cm) => {
+        scrollMarkerClasses.forEach(className => {
+            const annotation = getScrollAnnotation(cm, className);
+            if (annotation) annotation.update(rangesByClass.get(className) || []);
+        });
     });
 }
 
 function addScrollDiffMarker(cm, from, to, className) {
     if (!cm) return;
 
-    const lineCount = Math.max(cm.lineCount(), 1);
-    const start = Math.max(0, Math.min(from, lineCount));
-    const end = Math.max(start, Math.min(to, lineCount));
+    const maxLine = cm.lineCount();
+    const start = Math.max(0, Math.min(from, maxLine));
+    const end = Math.max(start, Math.min(to, maxLine));
     const key = `${allEditors.indexOf(cm)}:${start}:${end}:${className}`;
     if (scrollMarkerSeen && scrollMarkerSeen.has(key)) return;
     if (scrollMarkerSeen) scrollMarkerSeen.add(key);
 
+    if (addAnnotatedScrollMarker(cm, start, end, className)) return;
+
+    const lineCount = Math.max(maxLine, 1);
     const marker = document.createElement('div');
     marker.className = `ndiff-scroll-marker ${className}`;
     marker.style.top = `${Math.min((start / lineCount) * 100, 99.5)}%`;
@@ -395,9 +462,12 @@ function updateMultiColumnScrollMarkers() {
 function updateScrollDiffMarkers() {
     clearScrollDiffMarkers();
     scrollMarkerSeen = new Set();
+    scrollMarkerRanges = new Map();
     if (currentLayout >= 4) updateMultiColumnScrollMarkers();
     else updateMergeViewScrollMarkers();
+    applyAnnotatedScrollMarkers();
     scrollMarkerSeen = null;
+    scrollMarkerRanges = null;
 }
 
 function addMultiColumnSpacer(cm, boundary, rows) {
