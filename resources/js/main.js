@@ -680,9 +680,44 @@ function getMode(path) {
 
 function updateFileInfo() {
     const info = document.getElementById('file-info');
-    const modeLabel = isEditMode ? '<span class="mode-indicator mode-indicator-edit">EDIT</span>' : '<span class="mode-indicator">SELECT</span>';
-    if (files.length === 0) info.innerHTML = `${modeLabel} No files loaded.`;
-    else info.innerHTML = `${modeLabel} Loaded ${files.length} file(s): ` + files.map(f => f.path.split('/').pop()).join(' vs ');
+    if (!info) return;
+
+    info.replaceChildren();
+
+    const mode = document.createElement('span');
+    mode.className = isEditMode ? 'mode-indicator mode-indicator-edit' : 'mode-indicator';
+    mode.innerText = isEditMode ? 'EDIT' : 'SELECT';
+    info.appendChild(mode);
+
+    if (files.length === 0) {
+        const empty = document.createElement('span');
+        empty.innerText = 'No files loaded.';
+        info.appendChild(empty);
+        return;
+    }
+
+    const loaded = document.createElement('span');
+    loaded.className = 'file-count';
+    loaded.innerText = `Loaded ${files.length} file(s):`;
+    info.appendChild(loaded);
+
+    const fileList = document.createElement('span');
+    fileList.className = 'file-list';
+    files.forEach((file, index) => {
+        if (index > 0) {
+            const separator = document.createElement('span');
+            separator.className = 'file-separator';
+            separator.innerText = 'vs';
+            fileList.appendChild(separator);
+        }
+
+        const item = document.createElement('span');
+        item.className = file.modified ? 'file-path file-modified' : 'file-path';
+        item.title = file.path;
+        item.innerText = `${file.modified ? '*' : ''}${file.path}`;
+        fileList.appendChild(item);
+    });
+    info.appendChild(fileList);
 }
 
 async function saveResult() {
