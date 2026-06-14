@@ -110,10 +110,6 @@ body {
   text-align: left;
 }
 
-.file-modified {
-  font-weight: 600;
-}
-
 .file-modified-marker {
   direction: ltr;
   unicode-bidi: isolate;

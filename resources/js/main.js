@@ -700,7 +700,7 @@ function updateFileInfo() {
     fileList.className = 'file-list';
     files.forEach(file => {
         const item = document.createElement('span');
-        item.className = file.modified ? 'file-path file-modified' : 'file-path';
+        item.className = 'file-path';
         item.title = file.path;
 
         if (file.modified) {
