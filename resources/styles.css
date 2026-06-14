@@ -108,11 +108,15 @@ body {
   white-space: nowrap;
   direction: rtl;
   text-align: left;
-  unicode-bidi: plaintext;
 }
 
 .file-modified {
   font-weight: 600;
+}
+
+.file-modified-marker {
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 #save-btn {

@@ -702,7 +702,15 @@ function updateFileInfo() {
         const item = document.createElement('span');
         item.className = file.modified ? 'file-path file-modified' : 'file-path';
         item.title = file.path;
-        item.innerText = `${file.modified ? '*' : ''}${file.path}`;
+
+        if (file.modified) {
+            const marker = document.createElement('span');
+            marker.className = 'file-modified-marker';
+            marker.innerText = '*';
+            item.appendChild(marker);
+        }
+
+        item.append(`${file.path}\u200e`);
         fileList.appendChild(item);
     });
     info.appendChild(fileList);
