@@ -710,7 +710,10 @@ function updateFileInfo() {
             item.appendChild(marker);
         }
 
-        item.append(`${file.path}\u200e`);
+        const path = document.createElement('span');
+        path.className = 'file-path-text';
+        path.innerText = file.path;
+        item.appendChild(path);
         fileList.appendChild(item);
     });
     info.appendChild(fileList);

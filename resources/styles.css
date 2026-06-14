@@ -107,10 +107,14 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   direction: rtl;
-  text-align: left;
 }
 
 .file-modified-marker {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.file-path-text {
   direction: ltr;
   unicode-bidi: isolate;
 }
