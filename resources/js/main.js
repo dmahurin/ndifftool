@@ -696,21 +696,9 @@ function updateFileInfo() {
         return;
     }
 
-    const loaded = document.createElement('span');
-    loaded.className = 'file-count';
-    loaded.innerText = `Loaded ${files.length} file(s):`;
-    info.appendChild(loaded);
-
     const fileList = document.createElement('span');
     fileList.className = 'file-list';
-    files.forEach((file, index) => {
-        if (index > 0) {
-            const separator = document.createElement('span');
-            separator.className = 'file-separator';
-            separator.innerText = 'vs';
-            fileList.appendChild(separator);
-        }
-
+    files.forEach(file => {
         const item = document.createElement('span');
         item.className = file.modified ? 'file-path file-modified' : 'file-path';
         item.title = file.path;
