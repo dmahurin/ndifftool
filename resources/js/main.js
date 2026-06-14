@@ -7,6 +7,7 @@ let allEditors = [];
 let columnChunks = []; // Stored chunks for custom multi-pane mode. Index 0 is always null.
 let multiColumnHighlights = [];
 let multiColumnSpacers = [];
+let scrollMarkerSeen = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     init().catch(err => {
@@ -176,7 +177,11 @@ function setupEditor(cm, index) {
             files[index].content = cm.getValue();
             files[index].modified = files[index].content !== files[index].originalContent;
         }
-        if (currentLayout >= 4) refreshMultiColumnChunks();
+        if (currentLayout >= 4) {
+            refreshMultiColumnChunks();
+        } else {
+            setTimeout(updateScrollDiffMarkers, 0);
+        }
     });
 }
 
@@ -232,6 +237,7 @@ function initMergeView(cols) {
         setupEditor(editorInstance.edit, 1);
         setupEditor(editorInstance.right.orig, 2);
     }
+    setTimeout(updateScrollDiffMarkers, 0);
 }
 
 function getLineChunks(text1, text2) {
@@ -294,6 +300,104 @@ function addMultiColumnRangeClass(cm, from, to, className, seen) {
     for (let line = from; line < to; line++) {
         addMultiColumnLineClass(cm, line, className, seen);
     }
+}
+
+function getScrollMarkerLayer(cm) {
+    if (!cm.ndiffScrollMarkerLayer) {
+        const layer = document.createElement('div');
+        layer.className = 'ndiff-scroll-markers';
+        cm.getWrapperElement().appendChild(layer);
+        cm.ndiffScrollMarkerLayer = layer;
+    }
+    return cm.ndiffScrollMarkerLayer;
+}
+
+function clearScrollDiffMarkers() {
+    allEditors.forEach(cm => {
+        if (cm.ndiffScrollMarkerLayer) cm.ndiffScrollMarkerLayer.innerHTML = '';
+    });
+}
+
+function addScrollDiffMarker(cm, from, to, className) {
+    if (!cm) return;
+
+    const lineCount = Math.max(cm.lineCount(), 1);
+    const start = Math.max(0, Math.min(from, lineCount));
+    const end = Math.max(start, Math.min(to, lineCount));
+    const key = `${allEditors.indexOf(cm)}:${start}:${end}:${className}`;
+    if (scrollMarkerSeen && scrollMarkerSeen.has(key)) return;
+    if (scrollMarkerSeen) scrollMarkerSeen.add(key);
+
+    const marker = document.createElement('div');
+    marker.className = `ndiff-scroll-marker ${className}`;
+    marker.style.top = `${Math.min((start / lineCount) * 100, 99.5)}%`;
+    marker.style.height = end > start ? `${Math.max(((end - start) / lineCount) * 100, 0.6)}%` : '2px';
+    getScrollMarkerLayer(cm).appendChild(marker);
+}
+
+function addChunkScrollMarkers(leftCM, leftFrom, leftTo, rightCM, rightFrom, rightTo) {
+    const hasLeftLines = leftFrom < leftTo;
+    const hasRightLines = rightFrom < rightTo;
+
+    if (hasLeftLines && hasRightLines) {
+        addScrollDiffMarker(leftCM, leftFrom, leftTo, 'ndiff-scroll-changed');
+        addScrollDiffMarker(rightCM, rightFrom, rightTo, 'ndiff-scroll-changed');
+    } else if (hasLeftLines) {
+        addScrollDiffMarker(leftCM, leftFrom, leftTo, 'ndiff-scroll-deleted');
+        addScrollDiffMarker(rightCM, rightFrom, rightTo, 'ndiff-scroll-deleted');
+    } else if (hasRightLines) {
+        addScrollDiffMarker(leftCM, leftFrom, leftTo, 'ndiff-scroll-inserted');
+        addScrollDiffMarker(rightCM, rightFrom, rightTo, 'ndiff-scroll-inserted');
+    }
+}
+
+function updateMergeViewScrollMarkers() {
+    if (!editorInstance) return;
+
+    if (currentLayout === 2 && editorInstance.right) {
+        (editorInstance.right.chunks || []).forEach(chunk => {
+            addChunkScrollMarkers(
+                editorInstance.edit, chunk.editFrom, chunk.editTo,
+                editorInstance.right.orig, chunk.origFrom, chunk.origTo
+            );
+        });
+    } else if (currentLayout === 3) {
+        if (editorInstance.left) {
+            (editorInstance.left.chunks || []).forEach(chunk => {
+                addChunkScrollMarkers(
+                    editorInstance.edit, chunk.editFrom, chunk.editTo,
+                    editorInstance.left.orig, chunk.origFrom, chunk.origTo
+                );
+            });
+        }
+        if (editorInstance.right) {
+            (editorInstance.right.chunks || []).forEach(chunk => {
+                addChunkScrollMarkers(
+                    editorInstance.edit, chunk.editFrom, chunk.editTo,
+                    editorInstance.right.orig, chunk.origFrom, chunk.origTo
+                );
+            });
+        }
+    }
+}
+
+function updateMultiColumnScrollMarkers() {
+    for (let index = 1; index < allEditors.length; index++) {
+        (columnChunks[index] || []).forEach(chunk => {
+            addChunkScrollMarkers(
+                allEditors[0], chunk.origFrom, chunk.origTo,
+                allEditors[index], chunk.editFrom, chunk.editTo
+            );
+        });
+    }
+}
+
+function updateScrollDiffMarkers() {
+    clearScrollDiffMarkers();
+    scrollMarkerSeen = new Set();
+    if (currentLayout >= 4) updateMultiColumnScrollMarkers();
+    else updateMergeViewScrollMarkers();
+    scrollMarkerSeen = null;
 }
 
 function addMultiColumnSpacer(cm, boundary, rows) {
@@ -440,6 +544,7 @@ function refreshMultiColumnChunks() {
     }
     applyMultiColumnAlignment();
     applyMultiColumnHighlights();
+    updateScrollDiffMarkers();
 }
 
 function initMultiColumnView() {

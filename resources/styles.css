@@ -185,6 +185,36 @@ body {
   opacity: 0.55;
 }
 
+.ndiff-scroll-markers {
+  position: absolute;
+  top: 0;
+  right: 1px;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.ndiff-scroll-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  min-height: 2px;
+  border-radius: 2px;
+}
+
+.ndiff-scroll-inserted {
+  background-color: rgba(0, 180, 0, 0.75);
+}
+
+.ndiff-scroll-deleted {
+  background-color: rgba(220, 0, 0, 0.75);
+}
+
+.ndiff-scroll-changed {
+  background-color: rgba(220, 170, 0, 0.8);
+}
+
 .cm-merge-r-inserted {
   background-color: var(--inserted-bg);
 }
