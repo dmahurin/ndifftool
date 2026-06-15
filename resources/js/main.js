@@ -719,17 +719,15 @@ function currentLine(cm) {
     return Math.max(range.start, Math.min(line, range.end - 1));
 }
 
-function selectLineRange(cm, start, end, scroll = true) {
+function selectLine(cm, line, scroll = true) {
     const lineCount = cm.lineCount();
     const firstLine = cm.firstLine();
     const lastLine = cm.lastLine();
-    const rangeSize = Math.max(1, end - start);
-    const clampedStart = Math.max(firstLine, Math.min(start, lastLine));
-    const clampedEnd = Math.max(clampedStart + 1, Math.min(clampedStart + rangeSize, lineCount));
+    const clampedLine = Math.max(firstLine, Math.min(line, lastLine));
 
     cm.setSelection(
-        lineBoundaryPos(cm, clampedEnd),
-        {line: clampedStart, ch: 0},
+        lineBoundaryPos(cm, Math.min(clampedLine + 1, lineCount)),
+        {line: clampedLine, ch: 0},
         {scroll}
     );
 
@@ -781,8 +779,7 @@ function moveLineModeSelection(keyCode) {
 
     if (keyCode === 38 || keyCode === 40) { // Up or Down
         const delta = keyCode === 38 ? -1 : 1;
-        const targetLine = line + delta;
-        selectLineRange(activeCM, targetLine, targetLine + 1);
+        selectLine(activeCM, line + delta);
         return;
     }
 
@@ -792,7 +789,7 @@ function moveLineModeSelection(keyCode) {
 
     const targetCM = allEditors[targetIndex];
     const targetRange = mapSelectionToPane(currentIndex, targetIndex, {start: line, end: line + 1});
-    selectLineRange(targetCM, targetRange.start, targetRange.start + 1);
+    selectLine(targetCM, targetRange.start);
     clearOtherSelections(targetCM);
     targetCM.focus();
 }
