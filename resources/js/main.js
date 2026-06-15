@@ -119,6 +119,9 @@ function handleKey(cm, e) {
     } else if (e.keyCode === 27 && isEditMode) { // Escape
         e.preventDefault();
         setMode(false);
+    } else if (!isEditMode && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && e.keyCode >= 37 && e.keyCode <= 40) {
+        e.preventDefault();
+        moveLineModeSelection(e.keyCode);
     } else if ((e.keyCode === 8 || e.keyCode === 46) && !isEditMode) { // Backspace or Delete
         e.preventDefault();
         cm.replaceSelection("");
@@ -684,6 +687,81 @@ function lineBoundaryPos(cm, line) {
     return {line, ch: 0};
 }
 
+function selectLineRange(cm, start, end, scroll = true) {
+    const lineCount = cm.lineCount();
+    const firstLine = cm.firstLine();
+    const lastLine = cm.lastLine();
+    const rangeSize = Math.max(1, end - start);
+    const clampedStart = Math.max(firstLine, Math.min(start, lastLine));
+    const clampedEnd = Math.max(clampedStart + 1, Math.min(clampedStart + rangeSize, lineCount));
+
+    cm.setSelection(
+        lineBoundaryPos(cm, clampedEnd),
+        {line: clampedStart, ch: 0},
+        {scroll}
+    );
+}
+
+function mapSelectionToPane(sourceIndex, targetIndex, sourceRange) {
+    if (currentLayout >= 4) {
+        const baseStart = sourceIndex === 0 ? sourceRange.start : mapLineBoundary(columnChunks[sourceIndex], sourceRange.start, false, false);
+        const baseEnd = sourceIndex === 0 ? sourceRange.end : mapLineBoundary(columnChunks[sourceIndex], sourceRange.end, false, true);
+
+        return {
+            start: targetIndex === 0 ? baseStart : mapLineBoundary(columnChunks[targetIndex], baseStart, true, false),
+            end: targetIndex === 0 ? baseEnd : mapLineBoundary(columnChunks[targetIndex], baseEnd, true, true)
+        };
+    }
+
+    if (currentLayout === 2) {
+        const dv = editorInstance.right;
+        const fromOrig = sourceIndex === 1;
+        return {
+            start: mapLineBoundary(dv.chunks, sourceRange.start, fromOrig, false),
+            end: mapLineBoundary(dv.chunks, sourceRange.end, fromOrig, true)
+        };
+    }
+
+    let dv, fromOrig;
+    if (sourceIndex === 0) {
+        dv = editorInstance.left;
+        fromOrig = true;
+    } else if (sourceIndex === 2) {
+        dv = editorInstance.right;
+        fromOrig = true;
+    } else {
+        dv = targetIndex === 0 ? editorInstance.left : editorInstance.right;
+        fromOrig = false;
+    }
+
+    return {
+        start: mapLineBoundary(dv.chunks, sourceRange.start, fromOrig, false),
+        end: mapLineBoundary(dv.chunks, sourceRange.end, fromOrig, true)
+    };
+}
+
+function moveLineModeSelection(keyCode) {
+    if (!activeCM) return;
+
+    const range = selectedLineRange(activeCM);
+
+    if (keyCode === 38 || keyCode === 40) { // Up or Down
+        const delta = keyCode === 38 ? -1 : 1;
+        selectLineRange(activeCM, range.start + delta, range.end + delta);
+        return;
+    }
+
+    const currentIndex = allEditors.indexOf(activeCM);
+    const targetIndex = keyCode === 37 ? currentIndex - 1 : currentIndex + 1; // Left or Right
+    if (targetIndex < 0 || targetIndex >= allEditors.length) return;
+
+    const targetCM = allEditors[targetIndex];
+    const targetRange = mapSelectionToPane(currentIndex, targetIndex, range);
+    selectLineRange(targetCM, targetRange.start, targetRange.end);
+    clearOtherSelections(targetCM);
+    targetCM.focus();
+}
+
 function moveSelectedLines(direction) {
     if (!activeCM) return;
 
@@ -698,35 +776,9 @@ function moveSelectedLines(direction) {
     
     const targetCM = allEditors[targetIndex];
     const sourceRange = selectedLineRange(activeCM);
-    let targetStart, targetEnd;
-
-    if (currentLayout >= 4) {
-        // Mapping in multi-column mode: Source -> first file -> Target
-        let baseStart = (currentIndex === 0) ? sourceRange.start : mapLineBoundary(columnChunks[currentIndex], sourceRange.start, false, false);
-        let baseEnd = (currentIndex === 0) ? sourceRange.end : mapLineBoundary(columnChunks[currentIndex], sourceRange.end, false, true);
-        
-        targetStart = (targetIndex === 0) ? baseStart : mapLineBoundary(columnChunks[targetIndex], baseStart, true, false);
-        targetEnd = (targetIndex === 0) ? baseEnd : mapLineBoundary(columnChunks[targetIndex], baseEnd, true, true);
-    } else if (currentLayout === 2) {
-        // 2-way: index 0 is edit, index 1 is right.orig
-        const dv = editorInstance.right;
-        const fromOrig = (currentIndex === 1);
-        targetStart = mapLineBoundary(dv.chunks, sourceRange.start, fromOrig, false);
-        targetEnd = mapLineBoundary(dv.chunks, sourceRange.end, fromOrig, true);
-    } else if (currentLayout === 3) {
-        // 3-way: index 0 is left.orig, 1 is edit, 2 is right.orig
-        let dv, fromOrig;
-        if (currentIndex === 0) { // Left to Center
-            dv = editorInstance.left; fromOrig = true;
-        } else if (currentIndex === 2) { // Right to Center
-            dv = editorInstance.right; fromOrig = true;
-        } else { // Center to Left or Right
-            dv = (direction === 'left') ? editorInstance.left : editorInstance.right;
-            fromOrig = false;
-        }
-        targetStart = mapLineBoundary(dv.chunks, sourceRange.start, fromOrig, false);
-        targetEnd = mapLineBoundary(dv.chunks, sourceRange.end, fromOrig, true);
-    }
+    const targetRange = mapSelectionToPane(currentIndex, targetIndex, sourceRange);
+    const targetStart = targetRange.start;
+    const targetEnd = targetRange.end;
 
     const text = activeCM.getRange(lineBoundaryPos(activeCM, sourceRange.start), lineBoundaryPos(activeCM, sourceRange.end));
     targetCM.replaceRange(text, lineBoundaryPos(targetCM, targetStart), lineBoundaryPos(targetCM, targetEnd));
