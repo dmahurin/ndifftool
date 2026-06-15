@@ -97,9 +97,8 @@ function setMode(edit) {
                 cm.setCursor({line: from.line, ch: 0});
             }
         } else if (cm === activeCM) {
-            // Entering Edit Mode: Clear selection and put cursor at start of last selected line
-            const range = selectedLineRange(cm);
-            const line = Math.min(range.end - 1, cm.lastLine());
+            // Entering Edit Mode: Clear selection and put cursor on the current line.
+            const line = currentLine(cm);
             cm.setSelection({line, ch: 0}, {line, ch: 0}, {scroll: true});
         }
         // Force re-render to show/hide cursor immediately
