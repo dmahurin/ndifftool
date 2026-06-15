@@ -9,6 +9,7 @@ let multiColumnHighlights = [];
 let multiColumnSpacers = [];
 let scrollMarkerSeen = null;
 let scrollMarkerRanges = null;
+let currentLineMarker = null;
 
 const scrollMarkerClasses = [
     'ndiff-scroll-inserted',
@@ -105,6 +106,8 @@ function setMode(edit) {
         cm.refresh();
     });
 
+    updateCurrentLineMarker();
+
     if (edit && activeCM) {
         activeCM.focus();
     }
@@ -141,6 +144,7 @@ function clearOtherSelections(currentCM) {
     });
     currentCM.getWrapperElement().classList.add('editor-active');
     activeCM = currentCM;
+    updateCurrentLineMarker();
 }
 
 function setupEditor(cm, index) {
@@ -179,6 +183,7 @@ function setupEditor(cm, index) {
         if (!isEditMode && activeCM === cm) {
             // Keep the top of the selection in view
             cm.scrollIntoView(cm.getCursor('from'));
+            updateCurrentLineMarker();
         }
     });
 
@@ -687,19 +692,57 @@ function lineBoundaryPos(cm, line) {
     return {line, ch: 0};
 }
 
-function selectLineRange(cm, start, end, scroll = true) {
+function clearCurrentLineMarker() {
+    if (!currentLineMarker) return;
+    currentLineMarker.cm.removeLineClass(currentLineMarker.line, 'background', 'ndiff-current-line');
+    currentLineMarker = null;
+}
+
+function updateCurrentLineMarker() {
+    clearCurrentLineMarker();
+    if (isEditMode || !activeCM) return;
+
+    const line = currentLine(activeCM);
+    activeCM.addLineClass(line, 'background', 'ndiff-current-line');
+    currentLineMarker = {cm: activeCM, line};
+}
+
+function currentLine(cm) {
+    const range = selectedLineRange(cm);
+    const head = cm.getCursor('head');
+    let line = head.line;
+
+    if (head.ch === 0 && line === range.end && line > range.start) {
+        line -= 1;
+    }
+
+    return Math.max(range.start, Math.min(line, range.end - 1));
+}
+
+function selectLineRange(cm, start, end, scroll = true, current = start) {
     const lineCount = cm.lineCount();
     const firstLine = cm.firstLine();
     const lastLine = cm.lastLine();
     const rangeSize = Math.max(1, end - start);
     const clampedStart = Math.max(firstLine, Math.min(start, lastLine));
     const clampedEnd = Math.max(clampedStart + 1, Math.min(clampedStart + rangeSize, lineCount));
+    const clampedCurrent = Math.max(clampedStart, Math.min(current, clampedEnd - 1));
 
-    cm.setSelection(
-        lineBoundaryPos(cm, clampedEnd),
-        {line: clampedStart, ch: 0},
-        {scroll}
-    );
+    if (clampedCurrent === clampedStart) {
+        cm.setSelection(
+            lineBoundaryPos(cm, clampedEnd),
+            {line: clampedStart, ch: 0},
+            {scroll}
+        );
+    } else {
+        cm.setSelection(
+            {line: clampedStart, ch: 0},
+            lineBoundaryPos(cm, clampedEnd),
+            {scroll}
+        );
+    }
+
+    updateCurrentLineMarker();
 }
 
 function mapSelectionToPane(sourceIndex, targetIndex, sourceRange) {
@@ -744,10 +787,11 @@ function moveLineModeSelection(keyCode) {
     if (!activeCM) return;
 
     const range = selectedLineRange(activeCM);
+    const line = currentLine(activeCM);
 
     if (keyCode === 38 || keyCode === 40) { // Up or Down
         const delta = keyCode === 38 ? -1 : 1;
-        selectLineRange(activeCM, range.start + delta, range.end + delta);
+        selectLineRange(activeCM, range.start + delta, range.end + delta, true, line + delta);
         return;
     }
 
@@ -757,7 +801,8 @@ function moveLineModeSelection(keyCode) {
 
     const targetCM = allEditors[targetIndex];
     const targetRange = mapSelectionToPane(currentIndex, targetIndex, range);
-    selectLineRange(targetCM, targetRange.start, targetRange.end);
+    const targetCurrent = line === range.end - 1 ? targetRange.end - 1 : targetRange.start;
+    selectLineRange(targetCM, targetRange.start, targetRange.end, true, targetCurrent);
     clearOtherSelections(targetCM);
     targetCM.focus();
 }

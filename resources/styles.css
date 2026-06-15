@@ -7,6 +7,8 @@
   --edit-mode-indicator-text: #856404;
   --editor-active-shadow: rgba(0, 120, 215, 0.5);
   --editor-active-border: #0078d7;
+  --current-line-bg: rgba(0, 120, 215, 0.12);
+  --current-line-outline: rgba(0, 120, 215, 0.85);
   --merge-gap-bg: #f7f7f7;
   --merge-gap-border: #ddd;
   --connect-fill: rgba(0, 120, 215, 0.1);
@@ -35,6 +37,8 @@
     --edit-mode-indicator-text: #ffecb3;
     --editor-active-shadow: rgba(0, 120, 215, 0.5);
     --editor-active-border: #0078d7;
+    --current-line-bg: rgba(102, 175, 233, 0.18);
+    --current-line-outline: rgba(102, 175, 233, 0.9);
     --merge-gap-bg: #272822;
     --merge-gap-border: #444;
     --connect-fill: rgba(75, 75, 0, 0.2);
@@ -137,6 +141,13 @@ body {
 /* Modal modes styles */
 .line-select-mode .CodeMirror-cursor {
   display: none !important;
+}
+
+.line-select-mode .ndiff-current-line {
+  background-color: var(--current-line-bg);
+  box-shadow: inset 2px 0 0 var(--current-line-outline), inset -2px 0 0 var(--current-line-outline);
+  outline: 1px solid var(--current-line-outline);
+  outline-offset: -1px;
 }
 
 .editor-active {
