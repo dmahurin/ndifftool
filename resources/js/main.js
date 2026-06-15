@@ -181,8 +181,8 @@ function setupEditor(cm, index) {
 
     cm.on('cursorActivity', () => {
         if (!isEditMode && activeCM === cm) {
-            // Keep the top of the selection in view
-            cm.scrollIntoView(cm.getCursor('from'));
+            // Keep the line-mode cursor in view.
+            cm.scrollIntoView({line: currentLine(cm), ch: 0});
             updateCurrentLineMarker();
         }
     });
@@ -791,7 +791,8 @@ function moveLineModeSelection(keyCode) {
 
     if (keyCode === 38 || keyCode === 40) { // Up or Down
         const delta = keyCode === 38 ? -1 : 1;
-        selectLineRange(activeCM, range.start + delta, range.end + delta, true, line + delta);
+        const targetLine = line + delta;
+        selectLineRange(activeCM, targetLine, targetLine + 1);
         return;
     }
 
