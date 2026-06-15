@@ -122,6 +122,8 @@ function handleKey(cm, e) {
     } else if (e.keyCode === 27 && isEditMode) { // Escape
         e.preventDefault();
         setMode(false);
+    } else if (!isEditMode && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (e.keyCode === 38 || e.keyCode === 40)) {
+        orientLineModeSelectionForShift(cm, e.keyCode);
     } else if (!isEditMode && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && e.keyCode >= 37 && e.keyCode <= 40) {
         e.preventDefault();
         moveLineModeSelection(e.keyCode);
@@ -732,6 +734,25 @@ function selectLine(cm, line, scroll = true) {
     );
 
     updateCurrentLineMarker();
+}
+
+function orientLineModeSelectionForShift(cm, keyCode) {
+    const range = selectedLineRange(cm);
+    if (range.end - range.start !== 1) return;
+
+    if (keyCode === 40) { // Down
+        cm.setSelection(
+            {line: range.start, ch: 0},
+            lineBoundaryPos(cm, range.end),
+            {scroll: false}
+        );
+    } else { // Up
+        cm.setSelection(
+            lineBoundaryPos(cm, range.end),
+            {line: range.start, ch: 0},
+            {scroll: false}
+        );
+    }
 }
 
 function mapSelectionToPane(sourceIndex, targetIndex, sourceRange) {
