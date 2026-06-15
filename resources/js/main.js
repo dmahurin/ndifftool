@@ -719,28 +719,19 @@ function currentLine(cm) {
     return Math.max(range.start, Math.min(line, range.end - 1));
 }
 
-function selectLineRange(cm, start, end, scroll = true, current = start) {
+function selectLineRange(cm, start, end, scroll = true) {
     const lineCount = cm.lineCount();
     const firstLine = cm.firstLine();
     const lastLine = cm.lastLine();
     const rangeSize = Math.max(1, end - start);
     const clampedStart = Math.max(firstLine, Math.min(start, lastLine));
     const clampedEnd = Math.max(clampedStart + 1, Math.min(clampedStart + rangeSize, lineCount));
-    const clampedCurrent = Math.max(clampedStart, Math.min(current, clampedEnd - 1));
 
-    if (clampedCurrent === clampedStart) {
-        cm.setSelection(
-            lineBoundaryPos(cm, clampedEnd),
-            {line: clampedStart, ch: 0},
-            {scroll}
-        );
-    } else {
-        cm.setSelection(
-            {line: clampedStart, ch: 0},
-            lineBoundaryPos(cm, clampedEnd),
-            {scroll}
-        );
-    }
+    cm.setSelection(
+        lineBoundaryPos(cm, clampedEnd),
+        {line: clampedStart, ch: 0},
+        {scroll}
+    );
 
     updateCurrentLineMarker();
 }
@@ -786,7 +777,6 @@ function mapSelectionToPane(sourceIndex, targetIndex, sourceRange) {
 function moveLineModeSelection(keyCode) {
     if (!activeCM) return;
 
-    const range = selectedLineRange(activeCM);
     const line = currentLine(activeCM);
 
     if (keyCode === 38 || keyCode === 40) { // Up or Down
@@ -801,9 +791,8 @@ function moveLineModeSelection(keyCode) {
     if (targetIndex < 0 || targetIndex >= allEditors.length) return;
 
     const targetCM = allEditors[targetIndex];
-    const targetRange = mapSelectionToPane(currentIndex, targetIndex, range);
-    const targetCurrent = line === range.end - 1 ? targetRange.end - 1 : targetRange.start;
-    selectLineRange(targetCM, targetRange.start, targetRange.end, true, targetCurrent);
+    const targetRange = mapSelectionToPane(currentIndex, targetIndex, {start: line, end: line + 1});
+    selectLineRange(targetCM, targetRange.start, targetRange.start + 1);
     clearOtherSelections(targetCM);
     targetCM.focus();
 }
